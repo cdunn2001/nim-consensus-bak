@@ -1,5 +1,6 @@
 #ifdef C2NIM
 #mangle uint8_t uint8
+#mangle uint16_t uint16
 #else
 
 #include <sys/types.h>

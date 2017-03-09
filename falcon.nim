@@ -71,13 +71,13 @@ type
     align_tags*: ptr align_tag_t
 
   align_tag_col_t* = object
-    size*: uint16_t
-    n_link*: uint16_t
+    size*: uint16
+    n_link*: uint16
     p_t_pos*: ptr seq_coor_t    ## # the tag position of the previous base
     p_delta*: ptr uint8         ## # the tag delta of the previous base
     p_q_base*: cstring         ## # the previous base
-    link_count*: ptr uint16_t
-    count*: uint16_t
+    link_count*: ptr uint16
+    count*: uint16
     best_p_t_pos*: seq_coor_t
     best_p_delta*: uint8
     best_p_q_base*: uint8      ## # encoded base
@@ -150,15 +150,15 @@ proc allocate_aln_col*(col: ptr align_tag_col_t) =
   col.p_t_pos = cast[ptr seq_coor_t](calloc(col.size, sizeof((seq_coor_t))))
   col.p_delta = cast[ptr uint8](calloc(col.size, sizeof((uint8))))
   col.p_q_base = cast[cstring](calloc(col.size, sizeof((char))))
-  col.link_count = cast[ptr uint16_t](calloc(col.size, sizeof((uint16_t))))
+  col.link_count = cast[ptr uint16](calloc(col.size, sizeof((uint16))))
 
 proc realloc_aln_col*(col: ptr align_tag_col_t) =
   col.p_t_pos = cast[ptr seq_coor_t](realloc(col.p_t_pos,
       (col.size) * sizeof((seq_coor_t))))
   col.p_delta = cast[ptr uint8](realloc(col.p_delta, (col.size) * sizeof((uint8))))
   col.p_q_base = cast[cstring](realloc(col.p_q_base, (col.size) * sizeof((char))))
-  col.link_count = cast[ptr uint16_t](realloc(col.link_count,
-      (col.size) * sizeof((uint16_t))))
+  col.link_count = cast[ptr uint16](realloc(col.link_count,
+      (col.size) * sizeof((uint16))))
 
 proc free_aln_col*(col: ptr align_tag_col_t) =
   free(col.p_t_pos)
@@ -182,7 +182,7 @@ proc allocate_delta_group*(g: ptr msa_delta_group_t) =
       inc(j)
     inc(i)
 
-proc realloc_delta_group*(g: ptr msa_delta_group_t; new_size: uint16_t) =
+proc realloc_delta_group*(g: ptr msa_delta_group_t; new_size: uint16) =
   var
     i: cint
     j: cint

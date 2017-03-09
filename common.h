@@ -128,6 +128,7 @@ typedef struct {
     int * eqv;
 } consensus_data;
 
+#ifndef C2NIM
 kmer_lookup * allocate_kmer_lookup (seq_coor_t);
 void init_kmer_lookup ( kmer_lookup *,  seq_coor_t );
 void free_kmer_lookup(kmer_lookup *);
@@ -188,3 +189,4 @@ aln_range* find_best_aln_range2(kmer_match * km_ptr,
                                 seq_coor_t K,
                                 seq_coor_t bin_width,
                                 seq_coor_t count_th);
+#endif
