@@ -67,7 +67,7 @@ type
     q_id*: cuint
 
   align_tags_t* = object
-    len*: seq_coor_t
+    length*: seq_coor_t
     align_tags*: ptr align_tag_t
 
   align_tag_col_t* = object
@@ -105,7 +105,7 @@ proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_co
     p_j: seq_coor_t
     p_jj: seq_coor_t
   tags = calloc(1, sizeof((align_tags_t)))
-  tags.len = aln_seq_len
+  tags.length = aln_seq_len
   tags.align_tags = calloc(aln_seq_len + 1, sizeof((align_tag_t)))
   i = range.s1 - 1
   j = range.s2 - 1
@@ -135,7 +135,7 @@ proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_co
     inc(k)
   ## # sentinal at the end
   ## #k = aln_seq_len;
-  tags.len = k
+  tags.length = k
   (tags.align_tags[k]).t_pos = UINT_MAX
   (tags.align_tags[k]).delta = UINT8_MAX
   (tags.align_tags[k]).q_base = '.'
@@ -330,7 +330,7 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
   while i < n_tag_seqs:
     ## # for each alignment position, insert the alignment tag to msa_array
     j = 0
-    while j < tag_seqs[i].len:
+    while j < tag_seqs[i].length:
       c_tag = tag_seqs[i].align_tags + j
       var delta: cuint
       delta = c_tag.delta
