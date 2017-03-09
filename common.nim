@@ -1,5 +1,3 @@
-var mydelta_us*: uint64_t
-
 ## #
 ## #  =====================================================================================
 ## # 
@@ -111,30 +109,3 @@ type
   consensus_data* = object
     sequence*: cstring
     eqv*: ptr cint
-
-
-proc allocate_kmer_lookup*(a2: seq_coor_t): ptr kmer_lookup
-proc init_kmer_lookup*(a2: ptr kmer_lookup; a3: seq_coor_t)
-proc free_kmer_lookup*(a2: ptr kmer_lookup)
-proc allocate_seq*(a2: seq_coor_t): seq_array
-proc init_seq_array*(a2: seq_array; a3: seq_coor_t)
-proc free_seq_array*(a2: seq_array)
-proc allocate_seq_addr*(size: seq_coor_t): seq_addr_array
-proc free_seq_addr_array*(a2: seq_addr_array)
-proc find_best_aln_range*(a2: ptr kmer_match; a3: seq_coor_t; a4: seq_coor_t;
-                         a5: seq_coor_t): ptr aln_range
-proc free_aln_range*(a2: ptr aln_range)
-proc find_kmer_pos_for_seq*(a2: cstring; a3: seq_coor_t; K: cuint; a5: seq_addr_array;
-                           a6: ptr kmer_lookup): ptr kmer_match
-proc free_kmer_match*(`ptr`: ptr kmer_match)
-proc add_sequence*(a2: seq_coor_t; a3: cuint; a4: cstring; a5: seq_coor_t;
-                  a6: seq_addr_array; a7: seq_array; a8: ptr kmer_lookup)
-proc mask_k_mer*(a2: seq_coor_t; a3: ptr kmer_lookup; a4: seq_coor_t)
-proc align*(a2: cstring; a3: seq_coor_t; a4: cstring; a5: seq_coor_t; a6: seq_coor_t;
-           a7: cint): ptr alignment
-proc free_alignment*(a2: ptr alignment)
-proc free_consensus_data*(a2: ptr consensus_data)
-proc generate_consensus*(input_seq: cstringArray; n_seq: cuint; min_cov: cuint;
-                        K: cuint; min_idt: cdouble): ptr consensus_data
-proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
-                          bin_width: seq_coor_t; count_th: seq_coor_t): ptr aln_range

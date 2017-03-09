@@ -1,5 +1,3 @@
-## ##include <sys/time.h>
-
 ## #
 ## #  =====================================================================================
 ## # 
@@ -61,10 +59,10 @@ import
 type
   align_tag_t* = object
     t_pos*: seq_coor_t
-    delta*: uint8_t
+    delta*: uint8
     q_base*: char
     p_t_pos*: seq_coor_t       ## # the tag position of the previous base
-    p_delta*: uint8_t          ## # the tag delta of the previous base
+    p_delta*: uint8            ## # the tag delta of the previous base
     p_q_base*: char            ## # the previous base
     q_id*: cuint
 
@@ -76,21 +74,21 @@ type
     size*: uint16_t
     n_link*: uint16_t
     p_t_pos*: ptr seq_coor_t    ## # the tag position of the previous base
-    p_delta*: ptr uint8_t       ## # the tag delta of the previous base
+    p_delta*: ptr uint8         ## # the tag delta of the previous base
     p_q_base*: cstring         ## # the previous base
     link_count*: ptr uint16_t
     count*: uint16_t
     best_p_t_pos*: seq_coor_t
-    best_p_delta*: uint8_t
-    best_p_q_base*: uint8_t    ## # encoded base
+    best_p_delta*: uint8
+    best_p_q_base*: uint8      ## # encoded base
     score*: cdouble
 
   msa_base_group_t* = object
     base*: ptr align_tag_col_t
 
   msa_delta_group_t* = object
-    size*: uint8_t
-    max_delta*: uint8_t
+    size*: uint8
+    max_delta*: uint8
     delta*: ptr msa_base_group_t
 
   msa_pos_t* = ptr msa_delta_group_t
@@ -150,15 +148,14 @@ proc free_align_tags*(tags: ptr align_tags_t) =
 
 proc allocate_aln_col*(col: ptr align_tag_col_t) =
   col.p_t_pos = cast[ptr seq_coor_t](calloc(col.size, sizeof((seq_coor_t))))
-  col.p_delta = cast[ptr uint8_t](calloc(col.size, sizeof((uint8_t))))
+  col.p_delta = cast[ptr uint8](calloc(col.size, sizeof((uint8))))
   col.p_q_base = cast[cstring](calloc(col.size, sizeof((char))))
   col.link_count = cast[ptr uint16_t](calloc(col.size, sizeof((uint16_t))))
 
 proc realloc_aln_col*(col: ptr align_tag_col_t) =
   col.p_t_pos = cast[ptr seq_coor_t](realloc(col.p_t_pos,
       (col.size) * sizeof((seq_coor_t))))
-  col.p_delta = cast[ptr uint8_t](realloc(col.p_delta,
-                                       (col.size) * sizeof((uint8_t))))
+  col.p_delta = cast[ptr uint8](realloc(col.p_delta, (col.size) * sizeof((uint8))))
   col.p_q_base = cast[cstring](realloc(col.p_q_base, (col.size) * sizeof((char))))
   col.link_count = cast[ptr uint16_t](realloc(col.link_count,
       (col.size) * sizeof((uint16_t))))
@@ -221,7 +218,7 @@ proc free_delta_group*(g: ptr msa_delta_group_t) =
     inc(i)
   free(g.delta)
 
-proc update_col*(col: ptr align_tag_col_t; p_t_pos: seq_coor_t; p_delta: uint8_t;
+proc update_col*(col: ptr align_tag_col_t; p_t_pos: seq_coor_t; p_delta: uint8;
                 p_q_base: char) =
   var updated: cint = 0
   var kk: cint

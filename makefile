@@ -1,7 +1,13 @@
-A=DW_banded.c   common.h      falcon.c      kmer_lookup.c poo.c
+NIMFLAGS=-d:debug
+NIMFLAGS=-d:release
+NIMFLAGS+=--verbosity:2
 
-go: DW_banded.nim falcon.nim kmer_lookup.nim poo.nim common.nim
-
+go:
+convert: DW_banded.nim falcon.nim kmer_lookup.nim poo.nim common.nim
+run-%: %.exe
+	./$*.exe
+%.exe: %.nim
+	nim ${NIMFLAGS} --out:$*.exe c $<
 %.nim: %.c
 	c2nim -o:$@ $<
 %.nim: %.h

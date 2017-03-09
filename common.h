@@ -1,5 +1,6 @@
-#include <stdint.h>
-uint64_t mydelta_us;
+#ifdef C2NIM
+//#mangle uint64_t uint64
+#endif
 
 /*
  * =====================================================================================
