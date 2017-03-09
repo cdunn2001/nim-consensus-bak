@@ -2,7 +2,7 @@ NIMFLAGS=-d:debug
 NIMFLAGS=-d:release
 NIMFLAGS+=--verbosity:2
 
-go:
+run-main:
 convert: DW_banded.nim falcon.nim kmer_lookup.nim poo.nim common.nim
 run-%: %.exe
 	./$*.exe
