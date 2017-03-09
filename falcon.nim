@@ -56,6 +56,11 @@
 import
   common
 
+const
+  UINT8_MAX = 255
+  UINT_MAX = uint32.high
+
+
 type
   align_tag_t* = object
     t_pos*: seq_coor_t
@@ -64,7 +69,7 @@ type
     p_t_pos*: seq_coor_t       ## # the tag position of the previous base
     p_delta*: uint8            ## # the tag delta of the previous base
     p_q_base*: char            ## # the previous base
-    q_id*: cuint
+    q_id*: uint32
 
   align_tags_t* = object
     length*: seq_coor_t
@@ -94,7 +99,7 @@ type
   msa_pos_t* = ptr msa_delta_group_t
 
 proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_coor_t;
-                    range: ptr aln_range; q_id: cuint; t_offset: seq_coor_t): ptr align_tags_t =
+                    srange: ptr aln_range; q_id: uint32; t_offset: seq_coor_t): ptr align_tags_t =
   var p_q_base: char
   var tags: ptr align_tags_t
   var
@@ -107,8 +112,8 @@ proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_co
   tags = calloc(1, sizeof((align_tags_t)))
   tags.length = aln_seq_len
   tags.align_tags = calloc(aln_seq_len + 1, sizeof((align_tag_t)))
-  i = range.s1 - 1
-  j = range.s2 - 1
+  i = srange.s1 - 1
+  j = srange.s2 - 1
   jj = 0
   p_j = - 1
   p_jj = 0
@@ -123,9 +128,9 @@ proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_co
       jj = 0
     if j + t_offset >= 0 and jj < UINT8_MAX and p_jj < UINT8_MAX:
       (tags.align_tags[k]).t_pos = j + t_offset
-      (tags.align_tags[k]).delta = jj
+      (tags.align_tags[k]).delta = uint8(jj)
       (tags.align_tags[k]).p_t_pos = p_j + t_offset
-      (tags.align_tags[k]).p_delta = p_jj
+      (tags.align_tags[k]).p_delta = uint8(p_jj)
       (tags.align_tags[k]).p_q_base = p_q_base
       (tags.align_tags[k]).q_base = aln_q_seq[k]
       (tags.align_tags[k]).q_id = q_id
@@ -136,7 +141,7 @@ proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_co
   ## # sentinal at the end
   ## #k = aln_seq_len;
   tags.length = k
-  (tags.align_tags[k]).t_pos = UINT_MAX
+  (tags.align_tags[k]).t_pos = -1 #UINT_MAX
   (tags.align_tags[k]).delta = UINT8_MAX
   (tags.align_tags[k]).q_base = '.'
   (tags.align_tags[k]).q_id = UINT_MAX
