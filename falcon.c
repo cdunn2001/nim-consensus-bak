@@ -1,5 +1,12 @@
 #ifdef C2NIM
 #mangle uint8_t uint8
+#else
+
+#include <sys/types.h>
+#include <sys/syscall.h>
+//#include <sys/time.h>
+#include <time.h>
+
 #endif
 /*
  * =====================================================================================
@@ -794,6 +801,7 @@ void free_consensus_data( consensus_data * consensus ){
     free(consensus);
 }
 
+#ifndef C2NIM
 /***
 void main() {
     unsigned int j;
@@ -853,3 +861,4 @@ void main() {
     free(input_seq);
 }
 ***/
+#endif
