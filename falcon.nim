@@ -59,26 +59,47 @@ import
 
 const
   UINT8_MAX = 255
+  UINT16_MAX = uint16.high.int32
   UINT_MAX = uint32.high
 
 # For ptr arithmetic
+template usePtr[T]() =
+  template `+`(p: ptr T, off: Natural): ptr T =
+    cast[ptr type(p[])](cast[ByteAddress](p) +% int(off) * sizeof(p[]))
+
+  template `+=`(p: ptr T, off: Natural) =
+    p = p + off
+
+  template `-`(p: ptr T, off: Natural): ptr T =
+    cast[ptr type(p[])](cast[ByteAddress](p) -% int(off) * sizeof(p[]))
+
+  template `-=`(p: ptr T, off: Natural) =
+    p = p - int(off)
+
+  template `[]`(p: ptr T, off: Natural): T =
+    (p + int(off))[]
+
+  template `[]=`(p: ptr T, off: Natural, val: T) =
+    (p + off)[] = val
+
+# https://forum.nim-lang.org/t/1188/1
 template ptrMath*(body: untyped) =
-  template `+`[T](p: ptr T, off: int): ptr T =
-    cast[ptr type(p[])](cast[ByteAddress](p) +% off * sizeof(p[]))
+  template `+`[T](p: ptr T, off: Natural): ptr T =
+    cast[ptr type(p[])](cast[ByteAddress](p) +% int(off) * sizeof(p[]))
   
-  template `+=`[T](p: ptr T, off: int) =
+  template `+=`[T](p: ptr T, off: Natural) =
     p = p + off
   
-  template `-`[T](p: ptr T, off: int): ptr T =
-    cast[ptr type(p[])](cast[ByteAddress](p) -% off * sizeof(p[]))
+  template `-`[T](p: ptr T, off: Natural): ptr T =
+    cast[ptr type(p[])](cast[ByteAddress](p) -% int(off) * sizeof(p[]))
   
-  template `-=`[T](p: ptr T, off: int) =
-    p = p - off
+  template `-=`[T](p: ptr T, off: Natural) =
+    p = p - int(off)
   
-  template `[]`[T](p: ptr T, off: int): T =
-    (p + off)[]
+  template `[]`[T](p: ptr T, off: Natural): T =
+    (p + int(off))[]
   
-  template `[]=`[T](p: ptr T, off: int, val: T) =
+  template `[]=`[T](p: ptr T, off: Natural, val: T) =
     (p + off)[] = val
   
   body
@@ -120,6 +141,15 @@ type
 
   msa_pos_t* = ptr msa_delta_group_t
 
+usePtr[align_tag_t]()
+usePtr[align_tag_col_t]()
+usePtr[msa_base_group_t]()
+usePtr[seq_coor_t]()
+usePtr[uint16]()
+usePtr[uint8]()
+usePtr[char]()
+
+
 proc calloc[T](n: Natural): ptr T =
   return cast[ptr T](alloc(n * sizeof(T)))
 proc realloc[T](p: ptr T, n: Natural): ptr T =
@@ -154,14 +184,13 @@ proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_co
       inc(j)
       jj = 0
     if j + t_offset >= 0 and jj < UINT8_MAX and p_jj < UINT8_MAX:
-      ptrMath:
-        (tags.align_tags[k]).t_pos = j + t_offset
-        (tags.align_tags[k]).delta = uint8(jj)
-        (tags.align_tags[k]).p_t_pos = p_j + t_offset
-        (tags.align_tags[k]).p_delta = uint8(p_jj)
-        (tags.align_tags[k]).p_q_base = p_q_base
-        (tags.align_tags[k]).q_base = aln_q_seq[k]
-        (tags.align_tags[k]).q_id = q_id
+      (tags.align_tags[k]).t_pos = j + t_offset
+      (tags.align_tags[k]).delta = uint8(jj)
+      (tags.align_tags[k]).p_t_pos = p_j + t_offset
+      (tags.align_tags[k]).p_delta = uint8(p_jj)
+      (tags.align_tags[k]).p_q_base = p_q_base
+      (tags.align_tags[k]).q_base = aln_q_seq[k]
+      (tags.align_tags[k]).q_id = q_id
       p_j = j
       p_jj = jj
       p_q_base = aln_q_seq[k]
@@ -169,11 +198,10 @@ proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_co
   ## # sentinal at the end
   ## #k = aln_seq_len;
   tags.length = k
-  ptrMath:
-    (tags.align_tags[k]).t_pos = -1 #UINT_MAX
-    (tags.align_tags[k]).delta = UINT8_MAX
-    (tags.align_tags[k]).q_base = '.'
-    (tags.align_tags[k]).q_id = UINT_MAX
+  (tags.align_tags[k]).t_pos = -1 #UINT_MAX
+  (tags.align_tags[k]).delta = UINT8_MAX
+  (tags.align_tags[k]).q_base = '.'
+  (tags.align_tags[k]).q_id = UINT_MAX
   return tags
 
 proc free_align_tags*(tags: ptr align_tags_t) =
@@ -200,13 +228,13 @@ proc free_aln_col*(col: ptr align_tag_col_t) =
 
 proc allocate_delta_group*(g: ptr msa_delta_group_t) =
   var
-    i: cint
+    i: uint8
     j: cint
   g.max_delta = 0
-  g.delta = cast[ptr msa_base_group_t](calloc(g.size, sizeof((msa_base_group_t))))
+  g.delta = calloc[msa_base_group_t](g.size)
   i = 0
   while i < g.size:
-    g.delta[i].base = cast[ptr align_tag_col_t](calloc(5, sizeof((align_tag_col_t))))
+    g.delta[i].base = calloc[align_tag_col_t](5)
     j = 0
     while j < 5:
       g.delta[i].base[j].size = 8
@@ -214,19 +242,18 @@ proc allocate_delta_group*(g: ptr msa_delta_group_t) =
       inc(j)
     inc(i)
 
-proc realloc_delta_group*(g: ptr msa_delta_group_t; new_size: uint16) =
+proc realloc_delta_group*(g: ptr msa_delta_group_t; new_size: uint8) =
   var
-    i: cint
+    i: uint16
     j: cint
-    bs: cint
-    es: cint
+    bs: uint8
+    es: uint16
   bs = g.size
   es = new_size
-  g.delta = cast[ptr msa_base_group_t](realloc(g.delta,
-      new_size * sizeof((msa_base_group_t))))
+  g.delta = calloc[msa_base_group_t](new_size)
   i = bs
   while i < es:
-    g.delta[i].base = cast[ptr align_tag_col_t](calloc(5, sizeof((align_tag_col_t))))
+    g.delta[i].base = calloc[align_tag_col_t](5)
     j = 0
     while j < 5:
       g.delta[i].base[j].size = 8
@@ -238,17 +265,17 @@ proc realloc_delta_group*(g: ptr msa_delta_group_t; new_size: uint16) =
 proc free_delta_group*(g: ptr msa_delta_group_t) =
   ## #manything to do here
   var
-    i: cint
+    i: uint8
     j: cint
   i = 0
   while i < g.size:
     j = 0
     while j < 5:
-      free_aln_col(addr((g.delta[i].base[j])))
+      free_aln_col(addr(g.delta[i].base[j]))
       inc(j)
-    free(g.delta[i].base)
+    dealloc(g.delta[i].base)
     inc(i)
-  free(g.delta)
+  dealloc(g.delta)
 
 proc update_col*(col: ptr align_tag_col_t; p_t_pos: seq_coor_t; p_delta: uint8;
                 p_q_base: char) =
