@@ -111,7 +111,7 @@ type ConsensusArgs = tuple
 type ConsensusResult = tuple
   consensus: string
   seed_id: string
-proc get_con(args: var ConsensusArgs): ConsensusResult =
+proc get_con(args: ConsensusArgs): ConsensusResult =
     var config = args.config
     var seqs = args.inseqs
     let n_seq = len(seqs)
@@ -166,7 +166,7 @@ proc format_seq(sequ: string, col: int): string =
   result[bn .. <(bn+tail)] = sequ[bo .. <(bo+tail)]
   result.setLen(bn+tail)
   #result[(bn+tail)] = '\l' # Python did not add final newline
-proc process_consensus(cargs: var ConsensusArgs) = #{.thread} =
+proc process_consensus(cargs: ConsensusArgs) = #{.thread} =
     discard """
     if thread_msa_array == nil:
       log "Was nil"
@@ -225,8 +225,8 @@ proc main() =
     var (seqs, seed_id, config_same) = q
     log($(len(seqs), seed_id, config))
     var cargs: ConsensusArgs = (inseqs: seqs, seed_id: seed_id, config: config)
-    #spawn process_consensus(cargs)
-    process_consensus(cargs)
+    spawn process_consensus(cargs)
+    #process_consensus(cargs)
     #spawn os.sleep(1000)
     #spawn simple(cargs)
   sync()
