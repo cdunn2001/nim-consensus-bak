@@ -54,8 +54,8 @@
 ## # #################################################################################$$
 ## # 
 
-import
-  common
+import common
+import kmer_lookup
 
 const
   UINT8_MAX = 255
@@ -142,6 +142,7 @@ type
   msa_pos_t* = ptr msa_delta_group_t
 
 usePtr[align_tag_t]()
+usePtr[ptr align_tags_t]()
 usePtr[align_tag_col_t]()
 usePtr[msa_pos_t]()
 usePtr[msa_base_group_t]()
@@ -351,29 +352,28 @@ proc clean_msa_working_space*(msa_array: ptr msa_pos_t; max_t_len: cuint) =
     inc(i)
 
 const
-  STATIC_ALLOCATE* = true
+  STATIC_ALLOCATE* = false
 
-## ##undef STATIC_ALLOCATE
 
-proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
-                             t_len: cuint; min_cov: cuint): ptr consensus_data =
+proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: seq_coor_t;
+                             t_len: seq_coor_t; min_cov: int): ref consensus_data =
   var
     i: seq_coor_t
     j: seq_coor_t
   var t_pos: seq_coor_t = 0
-  var coverage: ptr cuint
-  var local_nbase: ptr cuint
-  var consensus: ptr consensus_data
+  var coverage: seq[int]
+  var local_nbase: seq[uint8]
+  var consensus: ref consensus_data
   ## #char * consensus;
   var c_tag: ptr align_tag_t
-  coverage = calloc(t_len, sizeof(cuint))
-  local_nbase = calloc(t_len, sizeof(cuint))
+  newSeq(coverage, t_len)
+  newSeq(local_nbase, t_len)
   when not defined(STATIC_ALLOCATE):
     var msa_array: ptr msa_pos_t = nil
-    msa_array = calloc(t_len, sizeof(ptr msa_pos_t))
+    msa_array = calloc[msa_pos_t](t_len)
     i = 0
     while i < t_len:
-      msa_array[i] = calloc(1, sizeof((msa_delta_group_t)))
+      msa_array[i] = calloc[msa_delta_group_t](1)
       msa_array[i].size = 8
       allocate_delta_group(msa_array[i])
       inc(i)
@@ -389,7 +389,7 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
     j = 0
     while j < tag_seqs[i].length:
       c_tag = tag_seqs[i].align_tags + j
-      var delta: cuint
+      var delta: uint8
       delta = c_tag.delta
       if delta == 0:
         t_pos = c_tag.t_pos
@@ -398,7 +398,7 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
         msa_array[t_pos].max_delta = delta
         if msa_array[t_pos].max_delta + 4 > msa_array[t_pos].size:
           realloc_delta_group(msa_array[t_pos], msa_array[t_pos].max_delta + 8)
-      var base: cuint = - 1
+      var base: uint8
       case c_tag.q_base
       of 'A':
         base = 0
@@ -410,6 +410,8 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
         base = 3
       of '-':
         base = 4
+      else:
+        base = 255
       ## # Note: On bad input, base may be -1.
       update_col(addr((msa_array[t_pos].delta[delta].base[base])), c_tag.p_t_pos,
                  c_tag.p_delta, c_tag.p_q_base)
@@ -417,18 +419,11 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
       inc(j)
     inc(i)
   ## # propogate score throught the alignment links, setup backtracking information
-  var g_best_aln_col: ptr align_tag_col_t = 0
-  var g_best_ck: cuint = 0
+  var g_best_aln_col: ptr align_tag_col_t = nil
+  var g_best_ck: uint16 = 0
   var g_best_t_pos: seq_coor_t = 0
   var kk: cint
-  var ck: cint
   ## # char base;
-  var best_i: cint
-  var best_j: cint
-  var best_b: cint
-  var best_ck: cint = - 1
-  var score: cdouble
-  var best_score: cdouble
   var g_best_score: cdouble
   ## # char best_mark;
   var aln_col: ptr align_tag_col_t
@@ -438,7 +433,7 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
     ## #loop through every template base
     ## #printf("max delta: %d %d\n", i, msa_array[i]->max_delta);
     j = 0
-    while j <= msa_array[i].max_delta:
+    while j <= seq_coor_t(msa_array[i].max_delta):
       ## # loop through every delta position
       kk = 0
       while kk < 5:
@@ -453,17 +448,19 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
         ## #                    }
         ## #                    
         aln_col = msa_array[i].delta[j].base + kk
-        if aln_col.count >= 0:
-          best_score = - 1
-          best_i = - 1
-          best_j = - 1
-          best_b = - 1
-          ck = 0
+        if aln_col.count >= 0'u16:
+          var score: cdouble
+          var best_score: cdouble = -1
+          var best_i: cint = -1
+          var best_j: uint8 = 255
+          var best_b: uint8 = 255
+          var best_ck: uint16 = 255
+          var ck: uint16 = 0
           while ck < aln_col.n_link:
             ## # loop through differnt link to previous column
             var pi: cint
-            var pj: cint
-            var pkk: cint
+            var pj: uint8
+            var pkk: uint8
             pi = aln_col.p_t_pos[ck]
             pj = aln_col.p_delta[ck]
             case aln_col.p_q_base[ck]
@@ -481,17 +478,20 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
               pkk = 4
             if aln_col.p_t_pos[ck] == - 1:
               score = cast[cdouble](aln_col.link_count[ck]) -
-                  cast[cdouble](coverage[i] * 0.5)
+                  cast[cdouble](coverage[i]) * 0.5
             else:
               score = msa_array[pi].delta[pj].base[pkk].score +
                   cast[cdouble](aln_col.link_count[ck]) -
-                  cast[cdouble](coverage[i] * 0.5)
+                  cast[cdouble](coverage[i]) * 0.5
             ## # best_mark = ' ';
             if score > best_score:
               best_score = score
-              aln_col.best_p_t_pos = best_i = pi
-              aln_col.best_p_delta = best_j = pj
-              aln_col.best_p_q_base = best_b = pkk
+              best_i = pi
+              aln_col.best_p_t_pos = best_i
+              best_j = pj
+              aln_col.best_p_delta = best_j
+              best_b = pkk
+              aln_col.best_p_q_base = best_b
               best_ck = ck
               ## # best_mark = '*';
             inc(ck)
@@ -507,21 +507,25 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
     inc(i)
   assert(g_best_score != - 1)
   ## # reconstruct the sequences
-  var index: cuint
+  var index: seq_coor_t
   var bb: char = '$'
-  var ck: cint
-  var cns_str: cstring
-  var eqv: ptr cint
+  var ck: range[0 .. 4]
+  var cns_str: ptr seq[char]
+  var cns_int: ptr seq[int8]
+  var eqv: ptr seq[cint]
   var score0: cdouble
-  consensus = calloc(1, sizeof((consensus_data)))
-  consensus.sequence = calloc(t_len * 2 + 1, sizeof((char)))
-  consensus.eqv = calloc(t_len * 2 + 1, sizeof(cuint))
-  cns_str = consensus.sequence
-  eqv = consensus.eqv
+  new(consensus)
+  newSeq(consensus.sequence, t_len*2+1)
+  newSeq(consensus.eqv, tlen*2+1)
+  # probably do not need +1
+
+  cns_str = addr consensus.sequence # alias
+  cns_int = cast[ptr seq[int8]](addr consensus.sequence) # alias
+  eqv = addr consensus.eqv # alias
   index = 0
   ck = g_best_ck
   i = g_best_t_pos
-  while 1:
+  while true:
     if coverage[i] > min_cov:
       case ck
       of 0:
@@ -550,7 +554,7 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
     score0 = g_best_aln_col.score
     i = g_best_aln_col.best_p_t_pos
     if i == - 1 or index >= t_len * 2: break
-    j = g_best_aln_col.best_p_delta
+    j = seq_coor_t(g_best_aln_col.best_p_delta)
     ck = g_best_aln_col.best_p_q_base
     g_best_aln_col = msa_array[i].delta[j].base + ck
     if bb != '-':
@@ -561,26 +565,24 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
   ## # reverse the sequence
   i = 0
   while i < index div 2:
-    cns_str[i] = cns_str[i] xor cns_str[index - i - 1]
-    cns_str[index - i - 1] = cns_str[i] xor cns_str[index - i - 1]
-    cns_str[i] = cns_str[i] xor cns_str[index - i - 1]
+    cns_int[i] = cns_int[i] xor cns_int[index - i - 1]
+    cns_int[index - i - 1] = cns_int[i] xor cns_int[index - i - 1]
+    cns_int[i] = cns_int[i] xor cns_int[index - i - 1]
     eqv[i] = eqv[i] xor eqv[index - i - 1]
     eqv[index - i - 1] = eqv[i] xor eqv[index - i - 1]
     eqv[i] = eqv[i] xor eqv[index - i - 1]
     inc(i)
-  cns_str[index] = 0
+  cns_int[index] = 0
   ## #printf("%s\n", cns_str);
   when not defined(STATIC_ALLOCATE):
     i = 0
     while i < t_len:
       free_delta_group(msa_array[i])
-      free(msa_array[i])
+      dealloc(msa_array[i])
       inc(i)
-    free(msa_array)
+    dealloc(msa_array)
   else:
     clean_msa_working_space(msa_array, t_len + 1)
-  free(coverage)
-  free(local_nbase)
   return consensus
 
 ## #const unsigned int K = 8;
@@ -606,8 +608,8 @@ proc generate_consensus*(input_seq: cstringArray; n_seq: cuint; min_cov: cuint;
   ## #    printf("seq_len: %u %u\n", j, strlen(input_seq[j]));
   ## #};
   ## #fflush(stdout);
-  tags_list = calloc(seq_count, sizeof(ptr align_tags_t))
-  lk_ptr = allocate_kmer_lookup(1 shl (K * 2))
+  tags_list = calloc[ptr align_tags_t](seq_count)
+  lk_ptr = kmer_lookup.allocate_kmer_lookup(1 shl (K * 2))
   sa_ptr = allocate_seq(cast[seq_coor_t](strlen(input_seq[0])))
   sda_ptr = allocate_seq_addr(cast[seq_coor_t](strlen(input_seq[0])))
   add_sequence(0, K, input_seq[0], strlen(input_seq[0]), sda_ptr, sa_ptr, lk_ptr)
@@ -668,7 +670,7 @@ proc generate_consensus*(input_seq: cstringArray; n_seq: cuint; min_cov: cuint;
   return consensus
 
 proc generate_utg_consensus*(input_seq: cstringArray; offset: ptr seq_coor_t;
-                            n_seq: cuint; min_cov: cuint; K: cuint; min_idt: cdouble): ptr consensus_data =
+                            n_seq: cuint; min_cov: cuint; K: cuint; min_idt: cdouble): ref consensus_data =
   var j: cuint
   var seq_count: cuint
   var aligned_seq_count: cuint
@@ -676,10 +678,13 @@ proc generate_utg_consensus*(input_seq: cstringArray; offset: ptr seq_coor_t;
   var aln: ptr alignment
   var tags_list: ptr ptr align_tags_t
   ## #char * consensus;
-  var consensus: ptr consensus_data
+  var consensus: ref consensus_data
   var max_diff: cdouble
   var utg_len: seq_coor_t
   var r_len: seq_coor_t
+  new(consensus)
+  #newSeq(consensus.sequence, 1)
+  #newSeq(consensus.eqv, 1)
   max_diff = 1.0 - min_idt
   seq_count = n_seq
   ## #**
@@ -740,9 +745,8 @@ proc generate_utg_consensus*(input_seq: cstringArray; offset: ptr seq_coor_t;
     consensus = get_cns_from_align_tags(tags_list, aligned_seq_count, utg_len, 0)
   else:
     ## # allocate an empty consensus sequence
-    consensus = calloc(1, sizeof((consensus_data)))
-    consensus.sequence = calloc(1, sizeof((char)))
-    consensus.eqv = calloc(1, sizeof(cuint))
+    consensus.sequence = ""
+    consensus.eqv = @[]
   ## #free(consensus);
   j = 0
   while j < aligned_seq_count:

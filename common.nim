@@ -109,5 +109,5 @@ type
     score*: clong
 
   consensus_data* = object
-    sequence*: cstring
-    eqv*: ptr cint
+    sequence*: seq[char]
+    eqv*: seq[cint]
