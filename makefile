@@ -2,6 +2,8 @@ NIMFLAGS=-d:debug
 NIMFLAGS=-d:release
 NIMFLAGS+=--verbosity:2
 
+do: main.exe
+	make -C ../t # LA4Falcon | ./n.exe
 run-main:
 convert: DW_banded.nim falcon.nim kmer_lookup.nim poo.nim common.nim
 run-%: %.exe

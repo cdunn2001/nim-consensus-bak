@@ -544,7 +544,7 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
 ## #const unsigned int K = 8;
 
 proc generate_consensus*(input_seq: cStringArray; n_seq: int; min_cov: int;
-                        K: int; min_idt: cdouble): consensus_data =
+                        K: int; min_idt: float32): consensus_data =
   var j: int
   var seq_count: int
   var aligned_seq_count: seq_coor_t
