@@ -64,7 +64,10 @@ iterator get_seq_data(config: Config, min_n_read, min_len_aln: int): auto =
   var read_ids: HashSet[string]
   var read_cov: int
   init(read_ids)
-  for fullline in stdin.lines:
+  var inp = stdin
+  #const fn = "/Users/cdunn2001/repo/gh/nim-consensus/c/t/foo.long"
+  #var inp = open(fn)
+  for fullline in inp.lines:
     var line = fullline.strip.split()
     if len(line) != 2: continue
     var read_id = line[0]
