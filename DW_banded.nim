@@ -85,7 +85,7 @@ proc get_dpath_idx(d: seq_coor_t; k: seq_coor_t; max_idx: int; # culong?
                    path_base: seq[d_path_data2]): ref d_path_data2 =
   var rtn: ref d_path_data2
   var d_tmp: d_path_data2
-  log("d_tmp:", repr(d_tmp))
+  #log("d_tmp:", repr(d_tmp))
   d_tmp.d = d
   d_tmp.k = k
   var found = binarySearch(path_base, max_idx + 1, d_tmp, compare_d_path)
@@ -109,6 +109,7 @@ proc print_d_path*(base: ptr d_path_data2; max_idx: culong) =
 
 proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
            t_len: seq_coor_t; band_tolerance: seq_coor_t; get_aln_str: bool): ref alignment =
+  #log("In align...")
   var V: seq[seq_coor_t]
   var U: seq[seq_coor_t]
   ## # array of matched bases for each "k"
@@ -300,6 +301,7 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
       break
     inc(d)
   #free(aln_path)
+  #log("Leaving align")
   return align_rtn
 
 #proc free_alignment*(aln: ptr alignment) =

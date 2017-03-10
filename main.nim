@@ -116,7 +116,7 @@ proc get_con(args: var ConsensusArgs): ConsensusResult =
         seqs = get_longest_sorted_reads(seqs, config.max_n_read, config.max_cov_aln)
     poo.poo()
     log("About to generate_con ", $len(seqs), " ", $n_seq)
-    log("pseq:", addr(seqs[0][0]), " ", repr(seqs[0]))
+    log("pseq:", $(cast[int]((addr(seqs[0])))), " eg ", $len(seqs[0]))
     var cseqs: cStringArray
     copy_seq_ptrs(cseqs, seqs)
     var consensus_data = falcon.generate_consensus(cseqs, n_seq, config.min_cov, config.K, config.min_idt)

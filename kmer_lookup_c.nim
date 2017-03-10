@@ -99,7 +99,6 @@ proc init_seq_array*(sa: var seq_array; size: seq_coor_t) =
 proc allocate_seq*(size: seq_coor_t): seq_array =
   newSeq(result, size)
   init_seq_array(result, size)
-  log("SA:", (repr result), "HMM")
   discard """
   var sa: seq_array
   sa = cast[seq_array](alloc(size * sizeof((base))))
@@ -108,7 +107,8 @@ proc allocate_seq*(size: seq_coor_t): seq_array =
   """
 
 proc allocate_seq_addr*(size: seq_coor_t): seq_addr_array =
-  return calloc[seq_addr](size)
+  return calloc0[seq_addr](size)
+  # Apparently, find_kmer_pos_for_seq() loop requires 0s
 
 proc get_kmer_bitvector*(sa: ptr base; K: cuint): seq_coor_t =
   var i: cuint
@@ -134,7 +134,7 @@ proc add_sequence*(start: seq_coor_t; K: cuint; cseq: cstring; seq_len: seq_coor
   var kmer_mask: seq_coor_t
   kmer_mask = 0
   i = 0
-  log("Adding seq of length:", seq_len)
+  #log("Adding seq of length:", $seq_len)
   while i < K.seq_coor_t:
     kmer_mask = kmer_mask shl 2
     kmer_mask = kmer_mask or 0x00000003
@@ -218,6 +218,7 @@ proc find_kmer_pos_for_seq*(cseq: cstring; seq_len: seq_coor_t; K: cuint;
     else:
       raise newException(ValueError, "Must be ACGT for kmer")
     inc(i)
+  # TODO(CD): Isn't this call redundant later?
   kmer_bv = get_kmer_bitvector(addr sa[0], K)
   half_K = K shr 1
   i = 0
@@ -234,6 +235,7 @@ proc find_kmer_pos_for_seq*(cseq: cstring; seq_len: seq_coor_t; K: cuint;
     inc(result.count, 1)
     while next_kmer_pos > kmer_pos:
       kmer_pos = next_kmer_pos
+      #echo "MY SDA:", repr(sda), " kmer_pos:", kmer_pos, " =", sda[kmer_pos]
       next_kmer_pos = sda[kmer_pos]
       result.query_pos.add(i)
       result.target_pos.add(kmer_pos)

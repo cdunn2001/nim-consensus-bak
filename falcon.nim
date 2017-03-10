@@ -566,9 +566,8 @@ proc generate_consensus*(input_seq: cStringArray; n_seq: int; min_cov: int;
   newSeq(tags_list, seq_count)
   var lk_ptr = kmer_lookup_c.allocate_kmer_lookup(seq_coor_t(1 shl (K * 2)))
   sa_ptr = allocate_seq(len(input_seq[0]).seq_coor_t)
-  log("FSA:", repr(sa_ptr))
   sda_ptr = allocate_seq_addr(len(input_seq[0]).seq_coor_t)
-  log("SDA:", repr(sda_ptr))
+  # TODO(CD): That was 0s for .c, but not 0s here. Where should we init?
   add_sequence(0.seq_coor_t, K.cuint, input_seq[0], len(input_seq[0]).seq_coor_t, sda_ptr, sa_ptr, lk_ptr)
   ## #mask_k_mer(1 << (K * 2), lk_ptr, 16);
   aligned_seq_count = 0
