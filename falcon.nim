@@ -588,6 +588,7 @@ proc generate_consensus*(input_seq: cStringArray; n_seq: int; min_cov: int;
         abs((arange.e1 - arange.s1) - (arange.e2 - arange.s2)) >
         (int)(0.5 * INDEL_ALLOWENCE_1 *
         cast[float](arange.e1 - arange.s1 + arange.e2 - arange.s2)):
+      inc(j)
       continue
     const
       INDEL_ALLOWENCE_2 = 150
@@ -663,6 +664,7 @@ proc generate_utg_consensus*(input_seq: cStringArray; in_offset: seq[seq_coor_t]
     ## #printf("seq_len: %u %u\n", j, r_len);
     if offset[j.int] < 0:
       if (r_len + offset[j]) < 128:
+        inc(j)
         continue
       if r_len + offset[j] < utg_len:
         ## #printf("1: %ld %u %u\n", offset[j], r_len, utg_len);
@@ -674,6 +676,7 @@ proc generate_utg_consensus*(input_seq: cStringArray; in_offset: seq[seq_coor_t]
       offset[j] = 0
     else:
       if offset[j] > utg_len - 128:
+        inc(j)
         continue
       if offset[j] + r_len > utg_len:
         ## #printf("3: %ld %u %u\n", offset[j], r_len, utg_len);

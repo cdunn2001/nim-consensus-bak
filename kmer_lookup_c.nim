@@ -97,10 +97,15 @@ proc init_seq_array*(sa: var seq_array; size: seq_coor_t) =
     inc(i)
 
 proc allocate_seq*(size: seq_coor_t): seq_array =
+  newSeq(result, size)
+  init_seq_array(result, size)
+  echo "SA:", (addr result[0]), "HMM"
+  discard """
   var sa: seq_array
   sa = cast[seq_array](alloc(size * sizeof((base))))
   init_seq_array(sa, size)
   return sa
+  """
 
 proc allocate_seq_addr*(size: seq_coor_t): seq_addr_array =
   return calloc[seq_addr](size)
@@ -219,6 +224,7 @@ proc find_kmer_pos_for_seq*(cseq: cstring; seq_len: seq_coor_t; K: cuint;
     kmer_bv = get_kmer_bitvector(addr sa[i], K)
     if lk[kmer_bv].start == INT_MAX:
       ## #for high count k-mers
+      inc(i, half_K.seq_coor_t)
       continue
     kmer_pos = lk[kmer_bv].start
     next_kmer_pos = sda[kmer_pos]
@@ -306,6 +312,7 @@ proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
     while i < km_ptr.count:
       d = cast[clong]((km_ptr.query_pos[i])) - cast[clong]((km_ptr.target_pos[i]))
       if abs(((d - d_min) div cast[clong](bin_size)) - max_k_mer_bin) > 5:
+        inc(i)
         continue
       if d_count[(d - d_min) div cast[clong](bin_size)] > count_th:
         q_coor[j] = km_ptr.query_pos[i]
@@ -375,7 +382,7 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match;
   var max_hit_idx: seq_coor_t
   var
     max_hit_score: seq_coor_t
-    max_hit_count: seq_coor_t
+    max_hit_count: seq_coor_t = 0
   var
     i: seq_coor_t
     j: seq_coor_t
@@ -440,7 +447,9 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match;
     cx = km_ptr.query_pos[i]
     cy = km_ptr.target_pos[i]
     d = cx - cy
-    if d < d_coor[max_s] or d > d_coor[max_e]: continue
+    if d < d_coor[max_s] or d > d_coor[max_e]:
+      inc(i)
+      continue
     j = i - 1
     candidate_idx = - 1
     max_d = 65535
