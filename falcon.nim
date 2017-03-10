@@ -280,7 +280,7 @@ proc free_delta_group*(g: ptr msa_delta_group_t) =
 proc update_col*(col: ptr align_tag_col_t; p_t_pos: seq_coor_t; p_delta: uint8;
                 p_q_base: char) =
   var updated: cint = 0
-  var kk: cint
+  var kk: uint16
   inc(col.count, 1)
   kk = 0
   while kk < col.n_link:
@@ -292,11 +292,11 @@ proc update_col*(col: ptr align_tag_col_t; p_t_pos: seq_coor_t; p_delta: uint8;
     inc(kk)
   if updated == 0:
     if col.n_link + 1 > col.size:
-      if col.size < (UINT16_MAX > 1) - 1:
+      if col.size < uint16((UINT16_MAX shr 1) - 1):
         col.size = col.size * 2
       else:
         inc(col.size, 256)
-      assert(col.size < UINT16_MAX - 1)
+      assert(col.size < uint16(UINT16_MAX - 1))
       realloc_aln_col(col)
     kk = col.n_link
     col.p_t_pos[kk] = p_t_pos
