@@ -62,48 +62,6 @@ const
   UINT16_MAX = uint16.high.int32
   UINT_MAX = uint32.high
 
-# For ptr arithmetic
-template usePtr[T]() =
-  template `+`(p: ptr T, off: Natural): ptr T =
-    cast[ptr type(p[])](cast[ByteAddress](p) +% int(off) * sizeof(p[]))
-
-  template `+=`(p: ptr T, off: Natural) =
-    p = p + off
-
-  template `-`(p: ptr T, off: Natural): ptr T =
-    cast[ptr type(p[])](cast[ByteAddress](p) -% int(off) * sizeof(p[]))
-
-  template `-=`(p: ptr T, off: Natural) =
-    p = p - int(off)
-
-  template `[]`(p: ptr T, off: Natural): T =
-    (p + int(off))[]
-
-  template `[]=`(p: ptr T, off: Natural, val: T) =
-    (p + off)[] = val
-
-# https://forum.nim-lang.org/t/1188/1
-template ptrMath*(body: untyped) =
-  template `+`[T](p: ptr T, off: Natural): ptr T =
-    cast[ptr type(p[])](cast[ByteAddress](p) +% int(off) * sizeof(p[]))
-  
-  template `+=`[T](p: ptr T, off: Natural) =
-    p = p + off
-  
-  template `-`[T](p: ptr T, off: Natural): ptr T =
-    cast[ptr type(p[])](cast[ByteAddress](p) -% int(off) * sizeof(p[]))
-  
-  template `-=`[T](p: ptr T, off: Natural) =
-    p = p - int(off)
-  
-  template `[]`[T](p: ptr T, off: Natural): T =
-    (p + int(off))[]
-  
-  template `[]=`[T](p: ptr T, off: Natural, val: T) =
-    (p + off)[] = val
-  
-  body
-
 type
   align_tag_t* = object
     t_pos*: seq_coor_t
@@ -141,21 +99,16 @@ type
 
   msa_pos_t* = ptr msa_delta_group_t
 
-usePtr[align_tag_t]()
-usePtr[ptr align_tags_t]()
-usePtr[align_tag_col_t]()
-usePtr[msa_pos_t]()
-usePtr[msa_base_group_t]()
-usePtr[seq_coor_t]()
-usePtr[uint16]()
-usePtr[uint8]()
-usePtr[char]()
+common.usePtr[align_tag_t]
+common.usePtr[ptr align_tags_t]
+common.usePtr[align_tag_col_t]
+common.usePtr[msa_pos_t]
+common.usePtr[msa_base_group_t]
+common.usePtr[seq_coor_t]
+common.usePtr[uint16]
+common.usePtr[uint8]
+common.usePtr[char]
 
-
-proc calloc[T](n: Natural): ptr T =
-  return cast[ptr T](alloc(n * sizeof(T)))
-proc realloc[T](p: ptr T, n: Natural): ptr T =
-  return cast[ptr T](alloc(n * sizeof(T)))
 
 proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_coor_t;
                     srange: ptr aln_range; q_id: uint32; t_offset: seq_coor_t): ptr align_tags_t =

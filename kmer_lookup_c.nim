@@ -56,20 +56,24 @@
 import common
 import algorithm
 
-var KMERMATCHINC*: cuint = 10000
+common.usePtr[kmer_lookup]
+common.usePtr[common.base]
+common.usePtr[common.seq_addr]
+
+const
+  UINT8_MAX = 255
+  UINT16_MAX = uint16.high.int32
+  UINT_MAX = uint32.high
+  INT_MAX = int32.high
+  LONG_MIN = clong.low
+
+var KMERMATCHINC*: seq_coor_t = 10000
 discard """
 proc compare_seq_coor*(a: pointer; b: pointer): cint =
   var arg1: ptr seq_coor_t = a
   var arg2: ptr seq_coor_t = b
   return (arg1[]) - (arg2[])
 """
-proc allocate_kmer_lookup*(size: seq_coor_t): ptr kmer_lookup =
-  var kl: ptr kmer_lookup
-  ## #printf("%lu is allocated for kmer lookup\n", size);
-  kl = cast[ptr kmer_lookup](malloc(size * sizeof((kmer_lookup))))
-  init_kmer_lookup(kl, size)
-  return kl
-
 proc init_kmer_lookup*(kl: ptr kmer_lookup; size: seq_coor_t) =
   var i: seq_coor_t
   ## #printf("%lu is allocated for kmer lookup\n", size);
@@ -80,36 +84,43 @@ proc init_kmer_lookup*(kl: ptr kmer_lookup; size: seq_coor_t) =
     kl[i].count = 0
     inc(i)
 
-proc free_kmer_lookup*(`ptr`: ptr kmer_lookup) =
-  free(`ptr`)
+proc allocate_kmer_lookup*(size: seq_coor_t): ptr kmer_lookup =
+  var kl: ptr kmer_lookup
+  ## #printf("%lu is allocated for kmer lookup\n", size);
+  kl = cast[ptr kmer_lookup](alloc(size * sizeof(kmer_lookup)))
+  init_kmer_lookup(kl, size)
+  return kl
 
-proc allocate_seq*(size: seq_coor_t): seq_array =
-  var sa: seq_array
-  sa = cast[seq_array](malloc(size * sizeof((base))))
-  init_seq_array(sa, size)
-  return sa
+proc free_kmer_lookup*(p: ptr kmer_lookup) =
+  dealloc(p)
 
-proc init_seq_array*(sa: seq_array; size: seq_coor_t) =
+proc init_seq_array*(sa: var seq_array; size: seq_coor_t) =
   var i: seq_coor_t
   i = 0
   while i < size:
-    sa[i] = 0x000000FF
+    sa[i] = 0x000000FF.base
     inc(i)
 
+proc allocate_seq*(size: seq_coor_t): seq_array =
+  var sa: seq_array
+  sa = cast[seq_array](alloc(size * sizeof((base))))
+  init_seq_array(sa, size)
+  return sa
+
 proc free_seq_array*(sa: seq_array) =
-  free(sa)
+  discard #dealloc(sa)
 
 proc allocate_seq_addr*(size: seq_coor_t): seq_addr_array =
-  return cast[seq_addr_array](calloc(size, sizeof((seq_addr))))
+  return calloc[seq_addr](size)
 
 proc free_seq_addr_array*(sda: seq_addr_array) =
-  free(sda)
+  dealloc(sda)
 
-proc get_kmer_bitvector*(sa: seq_array; K: cuint): seq_coor_t =
+proc get_kmer_bitvector*(sa: ptr base; K: cuint): seq_coor_t =
   var i: cuint
   var kmer_bv: seq_coor_t = 0
   var kmer_mask: seq_coor_t
-  kmer_mask = 0
+  kmer_mask = 0 # TODO(CD): Why is kmer_mask completely ignored??
   i = 0
   while i < K:
     kmer_mask = kmer_mask shl 2
@@ -118,18 +129,18 @@ proc get_kmer_bitvector*(sa: seq_array; K: cuint): seq_coor_t =
   i = 0
   while i < K:
     kmer_bv = kmer_bv shl 2
-    kmer_bv = kmer_bv or ((cast[cuint](sa[i])) and 0x00000003)
+    kmer_bv = kmer_bv or ((cast[int](sa[i.int])) and 0x00000003)
     inc(i)
   return kmer_bv
 
 proc add_sequence*(start: seq_coor_t; K: cuint; seq: cstring; seq_len: seq_coor_t;
-                  sda: seq_addr_array; sa: seq_array; lk: ptr kmer_lookup) =
+                  sda: seq_addr_array; sa: var seq_array; lk: ptr kmer_lookup) =
   var i: seq_coor_t
   var kmer_bv: seq_coor_t
   var kmer_mask: seq_coor_t
   kmer_mask = 0
   i = 0
-  while i < K:
+  while i < K.seq_coor_t:
     kmer_mask = kmer_mask shl 2
     kmer_mask = kmer_mask or 0x00000003
     inc(i)
@@ -137,17 +148,19 @@ proc add_sequence*(start: seq_coor_t; K: cuint; seq: cstring; seq_len: seq_coor_
   while i < seq_len:
     case seq[i]
     of 'A':
-      sa[start + i] = 0
+      sa[start + i] = 0.base
     of 'C':
-      sa[start + i] = 1
+      sa[start + i] = 1.base
     of 'G':
-      sa[start + i] = 2
+      sa[start + i] = 2.base
     of 'T':
-      sa[start + i] = 3
+      sa[start + i] = 3.base
+    else:
+       raise newException(ValueError, "Must be ACGT")
     inc(i)
-  kmer_bv = get_kmer_bitvector(sa + start, K)
+  kmer_bv = get_kmer_bitvector(addr sa[start], K)
   i = 0
-  while i < seq_len - K:
+  while i < seq_len - K.seq_coor_t:
     ## #printf("%lu %lu\n", i, kmer_bv);
     ## #printf("lk before init: %lu %lu %lu\n", kmer_bv, lk[kmer_bv].start, lk[kmer_bv].last);
     if lk[kmer_bv].start == INT_MAX:
@@ -156,12 +169,12 @@ proc add_sequence*(start: seq_coor_t; K: cuint; seq: cstring; seq_len: seq_coor_
       inc(lk[kmer_bv].count, 1)
       ## #printf("lk init: %lu %lu %lu\n", kmer_bv, lk[kmer_bv].start, lk[kmer_bv].last);
     else:
-      sda[lk[kmer_bv].last] = start + i
+      sda[lk[kmer_bv].last] = seq_addr(start + i)
       inc(lk[kmer_bv].count, 1)
       lk[kmer_bv].last = start + i
       ## #printf("lk change: %lu %lu %lu\n", kmer_bv, lk[kmer_bv].start, lk[kmer_bv].last);
     kmer_bv = kmer_bv shl 2
-    kmer_bv = kmer_bv or sa[start + i + K]
+    kmer_bv = kmer_bv or seq_coor_t(sa[start + i + K.int32])
     kmer_bv = kmer_bv and kmer_mask
     inc(i)
 
@@ -176,26 +189,23 @@ proc mask_k_mer*(size: seq_coor_t; kl: ptr kmer_lookup; threshold: seq_coor_t) =
     inc(i)
 
 proc find_kmer_pos_for_seq*(seq: cstring; seq_len: seq_coor_t; K: cuint;
-                           sda: seq_addr_array; lk: ptr kmer_lookup): ptr kmer_match =
+                           sda: seq_addr_array; lk: ptr kmer_lookup): ref kmer_match =
   var i: seq_coor_t
   var kmer_bv: seq_coor_t
   var kmer_mask: seq_coor_t
   var kmer_pos: seq_coor_t
   var next_kmer_pos: seq_coor_t
   var half_K: cuint
-  var kmer_match_rtn_allocation_size: seq_coor_t = KMERMATCHINC
-  var kmer_match_rtn: ptr kmer_match
-  var sa: ptr base
-  kmer_match_rtn = cast[ptr kmer_match](malloc(sizeof((kmer_match))))
-  kmer_match_rtn.count = 0
-  kmer_match_rtn.query_pos = cast[ptr seq_coor_t](calloc(
-      kmer_match_rtn_allocation_size, sizeof((seq_coor_t))))
-  kmer_match_rtn.target_pos = cast[ptr seq_coor_t](calloc(
-      kmer_match_rtn_allocation_size, sizeof((seq_coor_t))))
-  sa = calloc(seq_len, sizeof((base)))
+  #var result_allocation_size: seq_coor_t = KMERMATCHINC
+  var sa: seq[base]
+  new(result) # was kmer_match_rtn
+  result.count = 0 # redundant now, since the seqs know their lengths
+  newSeq(result.query_pos, 0)
+  newSeq(result.target_pos, 0)
+  newSeq(sa, seq_len)
   kmer_mask = 0
   i = 0
-  while i < K:
+  while i < K.seq_coor_t:
     kmer_mask = kmer_mask shl 2
     kmer_mask = kmer_mask or 0x00000003
     inc(i)
@@ -203,60 +213,40 @@ proc find_kmer_pos_for_seq*(seq: cstring; seq_len: seq_coor_t; K: cuint;
   while i < seq_len:
     case seq[i]
     of 'A':
-      sa[i] = 0
+      sa[i] = 0.base
     of 'C':
-      sa[i] = 1
+      sa[i] = 1.base
     of 'G':
-      sa[i] = 2
+      sa[i] = 2.base
     of 'T':
-      sa[i] = 3
+      sa[i] = 3.base
+    else:
+      raise newException(ValueError, "Must be ACGT for kmer")
     inc(i)
-  kmer_bv = get_kmer_bitvector(sa, K)
+  kmer_bv = get_kmer_bitvector(addr sa[0], K)
   half_K = K shr 1
   i = 0
-  while i < seq_len - K:
-    kmer_bv = get_kmer_bitvector(sa + i, K)
+  while i < seq_len - K.seq_coor_t:
+    kmer_bv = get_kmer_bitvector(addr sa[i], K)
     if lk[kmer_bv].start == INT_MAX:
       ## #for high count k-mers
       continue
     kmer_pos = lk[kmer_bv].start
     next_kmer_pos = sda[kmer_pos]
-    kmer_match_rtn.query_pos[kmer_match_rtn.count] = i
-    kmer_match_rtn.target_pos[kmer_match_rtn.count] = kmer_pos
-    inc(kmer_match_rtn.count, 1)
-    if kmer_match_rtn.count > kmer_match_rtn_allocation_size - 1000:
-      inc(kmer_match_rtn_allocation_size, KMERMATCHINC)
-      kmer_match_rtn.query_pos = cast[ptr seq_coor_t](realloc(
-          kmer_match_rtn.query_pos,
-          kmer_match_rtn_allocation_size * sizeof((seq_coor_t))))
-      kmer_match_rtn.target_pos = cast[ptr seq_coor_t](realloc(
-          kmer_match_rtn.target_pos,
-          kmer_match_rtn_allocation_size * sizeof((seq_coor_t))))
+    result.query_pos.add(i)
+    result.target_pos.add(kmer_pos)
+    inc(result.count, 1)
     while next_kmer_pos > kmer_pos:
       kmer_pos = next_kmer_pos
       next_kmer_pos = sda[kmer_pos]
-      kmer_match_rtn.query_pos[kmer_match_rtn.count] = i
-      kmer_match_rtn.target_pos[kmer_match_rtn.count] = kmer_pos
-      inc(kmer_match_rtn.count, 1)
-      if kmer_match_rtn.count > kmer_match_rtn_allocation_size - 1000:
-        inc(kmer_match_rtn_allocation_size, KMERMATCHINC)
-        kmer_match_rtn.query_pos = cast[ptr seq_coor_t](realloc(
-            kmer_match_rtn.query_pos,
-            kmer_match_rtn_allocation_size * sizeof((seq_coor_t))))
-        kmer_match_rtn.target_pos = cast[ptr seq_coor_t](realloc(
-            kmer_match_rtn.target_pos,
-            kmer_match_rtn_allocation_size * sizeof((seq_coor_t))))
-    inc(i, half_K)
-  free(sa)
-  return kmer_match_rtn
-
-proc free_kmer_match*(`ptr`: ptr kmer_match) =
-  free(`ptr`.query_pos)
-  free(`ptr`.target_pos)
-  free(`ptr`)
+      result.query_pos.add(i)
+      result.target_pos.add(kmer_pos)
+      inc(result.count, 1)
+    inc(i, half_K.seq_coor_t)
+  #return result # implicit
 
 proc find_best_aln_range*(km_ptr: ptr kmer_match; K: seq_coor_t; bin_size: seq_coor_t;
-                         count_th: seq_coor_t): ptr aln_range =
+                         count_th: seq_coor_t): ref aln_range =
   var i: seq_coor_t
   var j: seq_coor_t
   var
@@ -264,10 +254,10 @@ proc find_best_aln_range*(km_ptr: ptr kmer_match; K: seq_coor_t; bin_size: seq_c
     q_max: seq_coor_t
     t_min: seq_coor_t
     t_max: seq_coor_t
-  var d_count: ptr seq_coor_t
-  var q_coor: ptr seq_coor_t
-  var t_coor: ptr seq_coor_t
-  var arange: ptr aln_range
+  var d_count: seq[seq_coor_t]
+  var q_coor: seq[seq_coor_t]
+  var t_coor: seq[seq_coor_t]
+  var arange: ref aln_range
   var
     d: clong
     d_min: clong
@@ -277,7 +267,7 @@ proc find_best_aln_range*(km_ptr: ptr kmer_match; K: seq_coor_t; bin_size: seq_c
   var max_k_mer_count: clong
   var max_k_mer_bin: clong
   var cur_start: seq_coor_t
-  arange = calloc(1, sizeof((aln_range)))
+  new(arange)
   q_min = INT_MAX
   q_max = 0
   t_min = INT_MAX
@@ -301,9 +291,9 @@ proc find_best_aln_range*(km_ptr: ptr kmer_match; K: seq_coor_t; bin_size: seq_c
       d_max = d
     inc(i)
   ## #printf("%lu %ld %ld\n" , km_ptr->count, d_min, d_max);
-  d_count = calloc((d_max - d_min) div bin_size + 1, sizeof((seq_coor_t)))
-  q_coor = calloc(km_ptr.count, sizeof((seq_coor_t)))
-  t_coor = calloc(km_ptr.count, sizeof((seq_coor_t)))
+  newSeq(d_count, ((d_max - d_min) div bin_size + 1))
+  newSeq(q_coor, km_ptr.count)
+  newSeq(t_coor, km_ptr.count)
   i = 0
   while i < km_ptr.count:
     d = cast[clong]((km_ptr.query_pos[i])) - cast[clong]((km_ptr.target_pos[i]))
@@ -326,7 +316,7 @@ proc find_best_aln_range*(km_ptr: ptr kmer_match; K: seq_coor_t; bin_size: seq_c
     i = 0
     while i < km_ptr.count:
       d = cast[clong]((km_ptr.query_pos[i])) - cast[clong]((km_ptr.target_pos[i]))
-      if labs(((d - d_min) div cast[clong](bin_size)) - max_k_mer_bin) > 5:
+      if abs(((d - d_min) div cast[clong](bin_size)) - max_k_mer_bin) > 5:
         continue
       if d_count[(d - d_min) div cast[clong](bin_size)] > count_th:
         q_coor[j] = km_ptr.query_pos[i]
@@ -367,17 +357,14 @@ proc find_best_aln_range*(km_ptr: ptr kmer_match; K: seq_coor_t; bin_size: seq_c
     arange.e2 = 0
     arange.score = 0
   ## # printf("free\n");
-  free(d_count)
-  free(q_coor)
-  free(t_coor)
   return arange
 
 proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
                           bin_width: seq_coor_t; count_th: seq_coor_t): ptr aln_range =
   var d_coor: seq[seq_coor_t]
-  var hit_score: ptr seq_coor_t
-  var hit_count: ptr seq_coor_t
-  var last_hit: ptr seq_coor_t
+  var hit_score: seq[seq_coor_t]
+  var hit_count: seq[seq_coor_t]
+  var last_hit: seq[seq_coor_t]
   var
     max_q: seq_coor_t
     max_t: seq_coor_t
@@ -408,7 +395,6 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
     max_d: seq_coor_t
     d: seq_coor_t
   var arange: ptr aln_range
-  arange = calloc(1, sizeof((aln_range)))
   newSeq(d_coor, km_ptr.count)
   max_q = - 1
   max_t = - 1
@@ -418,17 +404,17 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
     max_q = if max_q > km_ptr.query_pos[i]: max_q else: km_ptr.query_pos[i]
     max_t = if max_t > km_ptr.target_pos[i]: max_q else: km_ptr.target_pos[i]
     inc(i)
-  algorithm.sort(d_coor, order: algorithm.SortOrder.Descending)
+  algorithm.sort(d_coor, system.cmp[seq_coor_t], order=algorithm.SortOrder.Ascending)
   s = 0
   e = 0
   max_s = - 1
   max_e = - 1
   max_span = - 1
-  delta = cast[clong]((0.05 * (max_q + max_t)))
+  delta = cast[seq_coor_t]((0.05 * float64(max_q + max_t)))
   d_len = km_ptr.count
   d_s = - 1
   d_e = - 1
-  while 1:
+  while true:
     d_s = d_coor[s]
     d_e = d_coor[e]
     while d_e < d_s + delta and e < d_len - 1:
@@ -447,11 +433,10 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
     arange.s2 = 0
     arange.e2 = 0
     arange.score = 0
-    free(d_coor)
     return arange
-  last_hit = calloc(km_ptr.count, sizeof((seq_coor_t)))
-  hit_score = calloc(km_ptr.count, sizeof((seq_coor_t)))
-  hit_count = calloc(km_ptr.count, sizeof((seq_coor_t)))
+  newSeq(last_hit, km_ptr.count)
+  newSeq(hit_score, km_ptr.count)
+  newSeq(hit_count, km_ptr.count)
   i = 0
   while i < km_ptr.count:
     last_hit[i] = - 1
@@ -469,7 +454,7 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
     j = i - 1
     candidate_idx = - 1
     max_d = 65535
-    while 1:
+    while true:
       if j < 0: break
       px = km_ptr.query_pos[j]
       py = km_ptr.target_pos[j]
@@ -504,10 +489,6 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
     arange.s2 = 0
     arange.e2 = 0
     arange.score = 0
-    free(d_coor)
-    free(last_hit)
-    free(hit_score)
-    free(hit_count)
     return arange
   arange.score = max_hit_count + 1
   arange.e1 = km_ptr.query_pos[max_hit_idx]
@@ -517,11 +498,7 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
     i = last_hit[i]
   arange.s1 = km_ptr.query_pos[i]
   arange.s2 = km_ptr.target_pos[i]
-  free(d_coor)
-  free(last_hit)
-  free(hit_score)
-  free(hit_count)
   return arange
 
 proc free_aln_range*(arange: ptr aln_range) =
-  free(arange)
+  discard #free(arange)

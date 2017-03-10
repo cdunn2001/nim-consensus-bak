@@ -93,13 +93,13 @@ type
     count*: seq_coor_t
 
   base* = cuchar
-  seq_array* = ptr base
+  seq_array* = seq[base] #ptr base
   seq_addr* = seq_coor_t
   seq_addr_array* = ptr seq_addr
   kmer_match* = object
-    count*: seq_coor_t
-    query_pos*: ptr seq_coor_t
-    target_pos*: ptr seq_coor_t
+    count*: seq_coor_t # triply redunant
+    query_pos*: seq[seq_coor_t]
+    target_pos*: seq[seq_coor_t]
 
   aln_range* = object
     s1*: seq_coor_t
@@ -111,3 +111,51 @@ type
   consensus_data* = object
     sequence*: seq[char]
     eqv*: seq[cint]
+
+# For ptr arithmetic
+template usePtr*[T] =
+  template `+`(p: ptr T, off: Natural): ptr T =
+    cast[ptr type(p[])](cast[ByteAddress](p) +% int(off) * sizeof(p[]))
+
+  template `+=`(p: ptr T, off: Natural) =
+    p = p + off
+
+  template `-`(p: ptr T, off: Natural): ptr T =
+    cast[ptr type(p[])](cast[ByteAddress](p) -% int(off) * sizeof(p[]))
+
+  template `-=`(p: ptr T, off: Natural) =
+    p = p - int(off)
+
+  template `[]`(p: ptr T, off: Natural): T =
+    (p + int(off))[]
+
+  template `[]=`(p: ptr T, off: Natural, val: T) =
+    (p + off)[] = val
+
+# https://forum.nim-lang.org/t/1188/1
+template ptrMath*(body: untyped) =
+  template `+`[T](p: ptr T, off: Natural): ptr T =
+    cast[ptr type(p[])](cast[ByteAddress](p) +% int(off) * sizeof(p[]))
+  
+  template `+=`[T](p: ptr T, off: Natural) =
+    p = p + off
+  
+  template `-`[T](p: ptr T, off: Natural): ptr T =
+    cast[ptr type(p[])](cast[ByteAddress](p) -% int(off) * sizeof(p[]))
+  
+  template `-=`[T](p: ptr T, off: Natural) =
+    p = p - int(off)
+  
+  template `[]`[T](p: ptr T, off: Natural): T =
+    (p + int(off))[]
+  
+  template `[]=`[T](p: ptr T, off: Natural, val: T) =
+    (p + off)[] = val
+  
+  body
+
+proc calloc*[T](n: Natural): ptr T =
+  return cast[ptr T](alloc(n * sizeof(T)))
+proc realloc*[T](p: ptr T, n: Natural): ptr T =
+  return cast[ptr T](alloc(n * sizeof(T)))
+
