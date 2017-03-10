@@ -66,8 +66,10 @@ proc compare_d_path*(arg1, arg2: d_path_data2): int =
   else:
     return arg1.d - arg2.d
 
-proc d_path_sort*(path_base: var seq[d_path_data2]) =
-  algorithm.sort(path_base, compare_d_path)
+proc d_path_sort*(path_base: var seq[d_path_data2], max_idx: int32) =
+  discard #algorithm.sort(path_base, compare_d_path)
+  #void d_path_sort( d_path_data2 * base, unsigned long max_idx)
+  #qsort(base, max_idx, sizeof(d_path_data2), compare_d_path);
 
 # Copied from Nim/lib/pure/algorithm.nim, and added cmp proc,
 # and max_idx.
