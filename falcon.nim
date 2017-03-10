@@ -55,7 +55,7 @@
 ## # 
 
 import common
-import kmer_lookup
+import kmer_lookup_c
 
 const
   UINT8_MAX = 255
@@ -609,7 +609,7 @@ proc generate_consensus*(input_seq: cstringArray; n_seq: cuint; min_cov: cuint;
   ## #};
   ## #fflush(stdout);
   tags_list = calloc[ptr align_tags_t](seq_count)
-  lk_ptr = kmer_lookup.allocate_kmer_lookup(1 shl (K * 2))
+  lk_ptr = kmer_lookup_c.allocate_kmer_lookup(1 shl (K * 2))
   sa_ptr = allocate_seq(cast[seq_coor_t](strlen(input_seq[0])))
   sda_ptr = allocate_seq_addr(cast[seq_coor_t](strlen(input_seq[0])))
   add_sequence(0, K, input_seq[0], strlen(input_seq[0]), sda_ptr, sa_ptr, lk_ptr)
