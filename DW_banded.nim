@@ -85,6 +85,7 @@ proc get_dpath_idx(d: seq_coor_t; k: seq_coor_t; max_idx: int; # culong?
                    path_base: seq[d_path_data2]): ref d_path_data2 =
   var rtn: ref d_path_data2
   var d_tmp: d_path_data2
+  log("d_tmp:", repr(d_tmp))
   d_tmp.d = d
   d_tmp.k = k
   var found = binarySearch(path_base, max_idx + 1, d_tmp, compare_d_path)

@@ -99,7 +99,7 @@ proc init_seq_array*(sa: var seq_array; size: seq_coor_t) =
 proc allocate_seq*(size: seq_coor_t): seq_array =
   newSeq(result, size)
   init_seq_array(result, size)
-  echo "SA:", (addr result[0]), "HMM"
+  log("SA:", (repr result), "HMM")
   discard """
   var sa: seq_array
   sa = cast[seq_array](alloc(size * sizeof((base))))
@@ -134,6 +134,7 @@ proc add_sequence*(start: seq_coor_t; K: cuint; cseq: cstring; seq_len: seq_coor
   var kmer_mask: seq_coor_t
   kmer_mask = 0
   i = 0
+  log("Adding seq of length:", seq_len)
   while i < K.seq_coor_t:
     kmer_mask = kmer_mask shl 2
     kmer_mask = kmer_mask or 0x00000003

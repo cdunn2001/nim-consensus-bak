@@ -1,5 +1,5 @@
-NIMFLAGS=-d:debug
-#NIMFLAGS=-d:release
+NIMFLAGS=-d:debug --debugger:native
+NIMFLAGS=-d:release
 NIMFLAGS+=--verbosity:2
 
 do: main.exe

@@ -159,3 +159,8 @@ proc calloc*[T](n: Natural): ptr T =
 proc realloc*[T](p: ptr T, n: Natural): ptr T =
   return cast[ptr T](alloc(n * sizeof(T)))
 
+proc log*(msgs: varargs[string]) =
+  for s in msgs:
+    write(stderr, s)
+  write(stderr, '\l')
+  return

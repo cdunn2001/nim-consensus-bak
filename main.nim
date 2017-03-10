@@ -1,5 +1,5 @@
 # vim: sw=2 ts=2 sts=2 tw=80 et:
-from common import nil
+from common import log
 from falcon import nil
 from DW_banded import nil
 from kmer_lookup_c import nil
@@ -16,11 +16,6 @@ import strutils
 let good_regions = re"[ACGT]+"
 #var thread_msa_array {.threadvar.}: string
 
-proc log(msgs: varargs[string]) =
-  for s in msgs:
-    write(stderr, s)
-  write(stderr, '\l')
-  return
 proc get_longest_reads(seqs: seq[string], max_n_read, max_cov_aln: int): seq[string] =
     var longest_n_reads = max_n_read
     if max_cov_aln > 0:
@@ -119,13 +114,13 @@ proc get_con(args: var ConsensusArgs): ConsensusResult =
     let n_seq = len(seqs)
     if len(seqs) > config.max_n_read:
         seqs = get_longest_sorted_reads(seqs, config.max_n_read, config.max_cov_aln)
-    #foo.poo()
+    poo.poo()
     log("About to generate_con ", $len(seqs), " ", $n_seq)
-    echo "pseq:", repr(seqs[0]), addr(seqs[0][0])
+    log("pseq:", addr(seqs[0][0]), " ", repr(seqs[0]))
     var cseqs: cStringArray
     copy_seq_ptrs(cseqs, seqs)
     var consensus_data = falcon.generate_consensus(cseqs, n_seq, config.min_cov, config.K, config.min_idt)
-    echo "cr:", repr(consensus_data)
+    log("cr:", repr(consensus_data))
     var consensus = consensus_data.sequence
     #echo "cs:", addr(consensus_data.sequence), " ", addr consensus, " ", addr consensus_data.sequence[0], " ", addr consensus[0]
     #eff_cov = consensus_data_ptr.eff_cov[:len(consensus)]
