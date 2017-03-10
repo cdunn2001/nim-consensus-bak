@@ -74,7 +74,7 @@ proc compare_seq_coor*(a: pointer; b: pointer): cint =
   var arg2: ptr seq_coor_t = b
   return (arg1[]) - (arg2[])
 """
-proc init_kmer_lookup*(kl: ptr kmer_lookup; size: seq_coor_t) =
+proc init_kmer_lookup*(kl: var seq[kmer_lookup]; size: seq_coor_t) =
   var i: seq_coor_t
   ## #printf("%lu is allocated for kmer lookup\n", size);
   i = 0
@@ -84,15 +84,13 @@ proc init_kmer_lookup*(kl: ptr kmer_lookup; size: seq_coor_t) =
     kl[i].count = 0
     inc(i)
 
-proc allocate_kmer_lookup*(size: seq_coor_t): ptr kmer_lookup =
-  var kl: ptr kmer_lookup
+proc allocate_kmer_lookup*(size: seq_coor_t): seq[kmer_lookup] =
+  newSeq(result, size)
   ## #printf("%lu is allocated for kmer lookup\n", size);
-  kl = cast[ptr kmer_lookup](alloc(size * sizeof(kmer_lookup)))
-  init_kmer_lookup(kl, size)
-  return kl
+  init_kmer_lookup(result, size)
 
 proc free_kmer_lookup*(p: ptr kmer_lookup) =
-  dealloc(p)
+  discard #dealloc(p)
 
 proc init_seq_array*(sa: var seq_array; size: seq_coor_t) =
   var i: seq_coor_t
@@ -133,8 +131,8 @@ proc get_kmer_bitvector*(sa: ptr base; K: cuint): seq_coor_t =
     inc(i)
   return kmer_bv
 
-proc add_sequence*(start: seq_coor_t; K: cuint; seq: cstring; seq_len: seq_coor_t;
-                  sda: seq_addr_array; sa: var seq_array; lk: ptr kmer_lookup) =
+proc add_sequence*(start: seq_coor_t; K: cuint; cseq: cstring; seq_len: seq_coor_t;
+                  sda: seq_addr_array; sa: var seq_array; lk: var seq[kmer_lookup]) =
   var i: seq_coor_t
   var kmer_bv: seq_coor_t
   var kmer_mask: seq_coor_t
@@ -146,7 +144,7 @@ proc add_sequence*(start: seq_coor_t; K: cuint; seq: cstring; seq_len: seq_coor_
     inc(i)
   i = 0
   while i < seq_len:
-    case seq[i]
+    case cseq[i]
     of 'A':
       sa[start + i] = 0.base
     of 'C':
@@ -188,8 +186,8 @@ proc mask_k_mer*(size: seq_coor_t; kl: ptr kmer_lookup; threshold: seq_coor_t) =
       ## #kl[i].count = 0;
     inc(i)
 
-proc find_kmer_pos_for_seq*(seq: cstring; seq_len: seq_coor_t; K: cuint;
-                           sda: seq_addr_array; lk: ptr kmer_lookup): ref kmer_match =
+proc find_kmer_pos_for_seq*(cseq: cstring; seq_len: seq_coor_t; K: cuint;
+                           sda: seq_addr_array; lk: seq[kmer_lookup]): ref kmer_match =
   var i: seq_coor_t
   var kmer_bv: seq_coor_t
   var kmer_mask: seq_coor_t
@@ -211,7 +209,7 @@ proc find_kmer_pos_for_seq*(seq: cstring; seq_len: seq_coor_t; K: cuint;
     inc(i)
   i = 0
   while i < seq_len:
-    case seq[i]
+    case cseq[i]
     of 'A':
       sa[i] = 0.base
     of 'C':
@@ -245,7 +243,7 @@ proc find_kmer_pos_for_seq*(seq: cstring; seq_len: seq_coor_t; K: cuint;
     inc(i, half_K.seq_coor_t)
   #return result # implicit
 
-proc find_best_aln_range*(km_ptr: ptr kmer_match; K: seq_coor_t; bin_size: seq_coor_t;
+proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
                          count_th: seq_coor_t): ref aln_range =
   var i: seq_coor_t
   var j: seq_coor_t
@@ -359,8 +357,8 @@ proc find_best_aln_range*(km_ptr: ptr kmer_match; K: seq_coor_t; bin_size: seq_c
   ## # printf("free\n");
   return arange
 
-proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
-                          bin_width: seq_coor_t; count_th: seq_coor_t): ptr aln_range =
+proc find_best_aln_range2*(km_ptr: ptr kmer_match;
+                          bin_width: seq_coor_t; count_th: seq_coor_t): ref aln_range =
   var d_coor: seq[seq_coor_t]
   var hit_score: seq[seq_coor_t]
   var hit_count: seq[seq_coor_t]
@@ -394,7 +392,8 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
     candidate_idx: seq_coor_t
     max_d: seq_coor_t
     d: seq_coor_t
-  var arange: ptr aln_range
+  var arange: ref aln_range
+  new(arange)
   newSeq(d_coor, km_ptr.count)
   max_q = - 1
   max_t = - 1
@@ -500,5 +499,5 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
   arange.s2 = km_ptr.target_pos[i]
   return arange
 
-proc free_aln_range*(arange: ptr aln_range) =
-  discard #free(arange)
+#proc free_aln_range*(arange: ptr aln_range) =
+#  discard #free(arange)
