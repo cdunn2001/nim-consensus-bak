@@ -15,6 +15,13 @@ run-%: %.exe
 	c2nim -o:$@ $<
 %.nim: %.h
 	c2nim -o:$@ $<
+
+ifeq (${USER},cdunn2001)
+CLEAN_NIMCACHE=rm -f nimcache/*.o
+else
+CLEAN_NIMCACHE=rm -rf nimcache/
+endif
+
 clean:
-	rm -rf nimcache/
+	${CLEAN_NIMCACHE}
 	rm -f main.exe
