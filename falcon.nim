@@ -540,16 +540,15 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: seq_co
 
 ## #const unsigned int K = 8;
 
-proc generate_consensus*(input_seq: cstringArray; n_seq: cuint; min_cov: cuint;
+proc generate_consensus*(input_seq: seq[string]; n_seq: cuint; min_cov: cuint;
                         K: cuint; min_idt: cdouble): ptr consensus_data =
   var j: cuint
   var seq_count: cuint
   var aligned_seq_count: cuint
-  var lk_ptr: ptr kmer_lookup
   var sa_ptr: seq_array
   var sda_ptr: seq_addr_array
-  var kmer_match_ptr: ptr kmer_match
-  var arange: ptr aln_range
+  var kmer_match_ptr: ref kmer_match
+  var arange: ref aln_range
   var aln: ptr alignment
   var tags_list: ptr ptr align_tags_t
   ## #char * consensus;
@@ -562,33 +561,30 @@ proc generate_consensus*(input_seq: cstringArray; n_seq: cuint; min_cov: cuint;
   ## #};
   ## #fflush(stdout);
   tags_list = calloc[ptr align_tags_t](seq_count)
-  lk_ptr = kmer_lookup_c.allocate_kmer_lookup(1 shl (K * 2))
-  sa_ptr = allocate_seq(cast[seq_coor_t](strlen(input_seq[0])))
-  sda_ptr = allocate_seq_addr(cast[seq_coor_t](strlen(input_seq[0])))
-  add_sequence(0, K, input_seq[0], strlen(input_seq[0]), sda_ptr, sa_ptr, lk_ptr)
+  var lk_ptr = kmer_lookup_c.allocate_kmer_lookup(seq_coor_t(1 shl (K * 2)))
+  sa_ptr = allocate_seq(len(input_seq[0]).seq_coor_t)
+  sda_ptr = allocate_seq_addr(len(input_seq[0]).seq_coor_t)
+  add_sequence(0.seq_coor_t, K, input_seq[0], len(input_seq[0]).seq_coor_t, sda_ptr, sa_ptr, lk_ptr)
   ## #mask_k_mer(1 << (K * 2), lk_ptr, 16);
-  mydelta_us = 0
   aligned_seq_count = 0
   j = 1
   while j < seq_count:
     ## #printf("seq_len: %ld %u\n", j, strlen(input_seq[j]));
-    kmer_match_ptr = find_kmer_pos_for_seq(input_seq[j], strlen(input_seq[j]), K,
+    kmer_match_ptr = find_kmer_pos_for_seq(input_seq[j.int], len(input_seq[j.int]).seq_coor_t, K,
         sda_ptr, lk_ptr)
     const
       INDEL_ALLOWENCE_0 = 6
-    arange = find_best_aln_range(kmer_match_ptr, K, K * INDEL_ALLOWENCE_0, 5)
+    arange = find_best_aln_range(kmer_match_ptr, K.int * INDEL_ALLOWENCE_0, 5.seq_coor_t)
     ## # narrow band to avoid aligning through big indels
     ## #printf("1:%ld %ld %ld %ld\n", arange_->s1, arange_->e1, arange_->s2, arange_->e2);
-    ## #arange = find_best_aln_range2(kmer_match_ptr, K, K * INDEL_ALLOWENCE_0, 5);  // narrow band to avoid aligning through big indels
+    ## #arange = find_best_aln_range2(kmer_match_ptr, K * INDEL_ALLOWENCE_0, 5.seq_coor_t);  // narrow band to avoid aligning through big indels
     ## #printf("2:%ld %ld %ld %ld\n\n", arange->s1, arange->e1, arange->s2, arange->e2);
     const
       INDEL_ALLOWENCE_1 = 0.1
     if arange.e1 - arange.s1 < 100 or arange.e2 - arange.s2 < 100 or
         abs((arange.e1 - arange.s1) - (arange.e2 - arange.s2)) >
         (int)(0.5 * INDEL_ALLOWENCE_1 *
-        (arange.e1 - arange.s1 + arange.e2 - arange.s2)):
-      free_kmer_match(kmer_match_ptr)
-      free_aln_range(arange)
+        cast[float](arange.e1 - arange.s1 + arange.e2 - arange.s2)):
       continue
     const
       INDEL_ALLOWENCE_2 = 150
