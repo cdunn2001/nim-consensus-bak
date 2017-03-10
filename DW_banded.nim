@@ -160,7 +160,13 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
   k_offset = max_d
   ## # We should probably use hashmap to store the backtracing information to save memory allocation time
   ## # This O(MN) block allocation scheme is convient for now but it is slower for very long sequences
+  let ssize = max_d * (band_size + 1) * 2 + 1
+  if ssize > 1000000:
+    raise newException(ValueError, "too big")
+
+  log("Big seq:", $ssize)
   newSeq(d_path, (max_d * (band_size + 1) * 2 + 1)) # maybe drop +1?
+  log("Did")
   ## #fprintf(stderr, "calloc(%d x %d)\n", max_d * (band_size + 1 ) * 2 + 1, sizeof(d_path_data2));
   newSeq(aln_path, (q_len + t_len + 1))
   new(align_rtn)
@@ -237,7 +243,8 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
       align_rtn.aln_str_size = (x + y + d) div 2
       align_rtn.aln_q_s = 0
       align_rtn.aln_t_s = 0
-      d_path_sort(d_path)
+      log("sort:", $len(d_path), " max:", $max_idx)
+      d_path_sort(d_path, max_idx)
       ## #print_d_path(d_path, max_idx);
       if get_aln_str:
         cd = d
