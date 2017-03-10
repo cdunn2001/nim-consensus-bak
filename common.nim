@@ -64,8 +64,8 @@ type
     aln_q_e*: seq_coor_t
     aln_t_s*: seq_coor_t
     aln_t_e*: seq_coor_t
-    q_aln_str*: cstring
-    t_aln_str*: cstring
+    q_aln_str*: string
+    t_aln_str*: string
 
   d_path_data* = object
     pre_k*: seq_coor_t
@@ -109,7 +109,7 @@ type
     score*: clong
 
   consensus_data* = object
-    sequence*: seq[char]
+    sequence*: string
     eqv*: seq[cint]
 
 # For ptr arithmetic

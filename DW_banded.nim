@@ -55,31 +55,46 @@
 ## #
 ## #
 
-import
-  common
+import common
+from algorithm import nil
 
-proc compare_d_path*(a: pointer; b: pointer): cint =
-  var arg1: ptr d_path_data2 = a
-  var arg2: ptr d_path_data2 = b
+common.usePtr[char]()
+
+proc compare_d_path*(arg1, arg2: d_path_data2): int =
   if arg1.d - arg2.d == 0:
     return arg1.k - arg2.k
   else:
     return arg1.d - arg2.d
 
-proc d_path_sort*(base: ptr d_path_data2; max_idx: culong) =
-  qsort(base, max_idx, sizeof((d_path_data2)), compare_d_path)
+proc d_path_sort*(path_base: var seq[d_path_data2]) =
+  algorithm.sort(path_base, compare_d_path)
 
-proc get_dpath_idx*(d: seq_coor_t; k: seq_coor_t; max_idx: culong;
-                   base: ptr d_path_data2): ptr d_path_data2 =
+# Copied from Nim/lib/pure/algorithm.nim, and added cmp proc,
+# and max_idx.
+proc binarySearch*[T](a: openArray[T], length: int, key: T, cmp: proc (x, y: T): int {.closure.}): int =
+  ## binary search for `key` in `a`. Returns -1 if not found.
+  var b = length # must be <= len(a)
+  while result < b:
+    var mid = (result + b) div 2
+    if cmp(a[mid], key) < 0: result = mid + 1
+    else: b = mid
+  if result >= length or cmp(a[result], key) != 0: result = -1
+
+proc get_dpath_idx(d: seq_coor_t; k: seq_coor_t; max_idx: int; # culong?
+                   path_base: seq[d_path_data2]): ref d_path_data2 =
+  var rtn: ref d_path_data2
   var d_tmp: d_path_data2
-  var rtn: ptr d_path_data2
   d_tmp.d = d
   d_tmp.k = k
-  rtn = cast[ptr d_path_data2](bsearch(addr(d_tmp), base, max_idx,
-                                    sizeof((d_path_data2)), compare_d_path))
+  var found = binarySearch(path_base, max_idx + 1, d_tmp, compare_d_path)
+  if found == -1:
+    return nil
+  new(rtn)
+  rtn[] = path_base[found]
   ## #printf("dp %ld %ld %ld %ld %ld %ld %ld\n", (rtn)->d, (rtn)->k, (rtn)->x1, (rtn)->y1, (rtn)->x2, (rtn)->y2, (rtn)->pre_k);
   return rtn
 
+discard """
 proc print_d_path*(base: ptr d_path_data2; max_idx: culong) =
   var idx: culong
   idx = 0
@@ -88,11 +103,12 @@ proc print_d_path*(base: ptr d_path_data2; max_idx: culong) =
            (base + idx).x1, (base + idx).y1, (base + idx).x2, (base + idx).y2,
            (base + idx).pre_k)
     inc(idx)
+"""
 
-proc align*(query_seq: cstring; q_len: seq_coor_t; target_seq: cstring;
-           t_len: seq_coor_t; band_tolerance: seq_coor_t; get_aln_str: cint): ptr alignment =
-  var V: ptr seq_coor_t
-  var U: ptr seq_coor_t
+proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
+           t_len: seq_coor_t; band_tolerance: seq_coor_t; get_aln_str: bool): ref alignment =
+  var V: seq[seq_coor_t]
+  var U: seq[seq_coor_t]
   ## # array of matched bases for each "k"
   var k_offset: seq_coor_t
   var d: seq_coor_t
@@ -120,38 +136,31 @@ proc align*(query_seq: cstring; q_len: seq_coor_t; target_seq: cstring;
     ny: seq_coor_t
   var max_d: seq_coor_t
   var band_size: seq_coor_t
-  var d_path_idx: culong = 0
-  var max_idx: culong = 0
-  var d_path: ptr d_path_data2
+  var d_path_idx: int32 = 0
+  var max_idx: int32 = 0
+  var d_path: seq[d_path_data2]
   var d_path_aux: ptr d_path_data2
-  var aln_path: ptr path_point
+  var aln_path: seq[path_point]
   var aln_path_idx: seq_coor_t
-  var align_rtn: ptr alignment
+  var align_rtn: ref alignment
   var aln_pos: seq_coor_t
   var i: seq_coor_t
   var aligned: bool = false
   ## #printf("debug: %ld %ld\n", q_len, t_len);
   ## #printf("%s\n", query_seq);
-  max_d = (int)(0.3 * (q_len + t_len))
+  max_d = cast[seq_coor_t](0.3 * cast[float](q_len + t_len))
   band_size = band_tolerance * 2
-  V = calloc(max_d * 2 + 1, sizeof((seq_coor_t)))
-  U = calloc(max_d * 2 + 1, sizeof((seq_coor_t)))
+  newSeq(V, (max_d * 2 + 1))
+  newSeq(U, (max_d * 2 + 1))
   k_offset = max_d
-  var
-    start: timespec
-    `end`: timespec
-  clock_gettime(CLOCK_MONOTONIC_RAW, addr(start))
   ## # We should probably use hashmap to store the backtracing information to save memory allocation time
   ## # This O(MN) block allocation scheme is convient for now but it is slower for very long sequences
-  d_path = calloc(max_d * (band_size + 1) * 2 + 1, sizeof((d_path_data2)))
-  clock_gettime(CLOCK_MONOTONIC_RAW, addr(`end`))
-  inc(mydelta_us, (`end`.tv_sec - start.tv_sec) * 1000000 +
-      (`end`.tv_nsec - start.tv_nsec) div 1000)
+  newSeq(d_path, (max_d * (band_size + 1) * 2 + 1)) # maybe drop +1?
   ## #fprintf(stderr, "calloc(%d x %d)\n", max_d * (band_size + 1 ) * 2 + 1, sizeof(d_path_data2));
-  aln_path = calloc(q_len + t_len + 1, sizeof((path_point)))
-  align_rtn = calloc(1, sizeof((alignment)))
-  align_rtn.t_aln_str = calloc(q_len + t_len + 1, sizeof((char)))
-  align_rtn.q_aln_str = calloc(q_len + t_len + 1, sizeof((char)))
+  newSeq(aln_path, (q_len + t_len + 1))
+  new(align_rtn)
+  align_rtn.t_aln_str = newString(q_len + t_len + 1)
+  align_rtn.q_aln_str = newString(q_len + t_len + 1)
   align_rtn.aln_str_size = 0
   align_rtn.aln_q_s = 0
   align_rtn.aln_q_e = 0
@@ -223,9 +232,9 @@ proc align*(query_seq: cstring; q_len: seq_coor_t; target_seq: cstring;
       align_rtn.aln_str_size = (x + y + d) div 2
       align_rtn.aln_q_s = 0
       align_rtn.aln_t_s = 0
-      d_path_sort(d_path, max_idx)
+      d_path_sort(d_path)
       ## #print_d_path(d_path, max_idx);
-      if get_aln_str > 0:
+      if get_aln_str:
         cd = d
         ck = k
         aln_path_idx = 0
@@ -288,13 +297,10 @@ proc align*(query_seq: cstring; q_len: seq_coor_t; target_seq: cstring;
         align_rtn.aln_str_size = aln_pos
       break
     inc(d)
-  free(V)
-  free(U)
-  free(d_path)
-  free(aln_path)
+  #free(aln_path)
   return align_rtn
 
-proc free_alignment*(aln: ptr alignment) =
-  free(aln.q_aln_str)
-  free(aln.t_aln_str)
-  free(aln)
+#proc free_alignment*(aln: ptr alignment) =
+#  free(aln.q_aln_str)
+#  free(aln.t_aln_str)
+#  free(aln)

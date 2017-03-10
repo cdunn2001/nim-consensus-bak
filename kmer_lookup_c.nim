@@ -89,9 +89,6 @@ proc allocate_kmer_lookup*(size: seq_coor_t): seq[kmer_lookup] =
   ## #printf("%lu is allocated for kmer lookup\n", size);
   init_kmer_lookup(result, size)
 
-proc free_kmer_lookup*(p: ptr kmer_lookup) =
-  discard #dealloc(p)
-
 proc init_seq_array*(sa: var seq_array; size: seq_coor_t) =
   var i: seq_coor_t
   i = 0
@@ -105,14 +102,8 @@ proc allocate_seq*(size: seq_coor_t): seq_array =
   init_seq_array(sa, size)
   return sa
 
-proc free_seq_array*(sa: seq_array) =
-  discard #dealloc(sa)
-
 proc allocate_seq_addr*(size: seq_coor_t): seq_addr_array =
   return calloc[seq_addr](size)
-
-proc free_seq_addr_array*(sda: seq_addr_array) =
-  dealloc(sda)
 
 proc get_kmer_bitvector*(sa: ptr base; K: cuint): seq_coor_t =
   var i: cuint

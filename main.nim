@@ -2,7 +2,7 @@
 from common import nil
 from falcon import nil
 from DW_banded import nil
-from kmer_lookup import nil
+from kmer_lookup_c import nil
 from poo import nil
 
 proc main() =

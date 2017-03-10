@@ -56,6 +56,7 @@
 
 import common
 import kmer_lookup_c
+import DW_banded
 
 const
   UINT8_MAX = 255
@@ -107,13 +108,14 @@ common.usePtr[msa_base_group_t]
 common.usePtr[seq_coor_t]
 common.usePtr[uint16]
 common.usePtr[uint8]
+common.usePtr[int8]
 common.usePtr[char]
 
 
 proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_coor_t;
-                    srange: ptr aln_range; q_id: uint32; t_offset: seq_coor_t): ptr align_tags_t =
+                    srange: ref aln_range; q_id: uint32; t_offset: seq_coor_t): ref align_tags_t =
   var p_q_base: char
-  var tags: ptr align_tags_t
+  var tags: ref align_tags_t
   var
     i: seq_coor_t
     j: seq_coor_t
@@ -121,7 +123,7 @@ proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_co
     k: seq_coor_t
     p_j: seq_coor_t
     p_jj: seq_coor_t
-  tags = calloc[align_tags_t](1)
+  new(tags)
   tags.length = aln_seq_len
   tags.align_tags = calloc[align_tag_t](aln_seq_len + 1)
   i = srange.s1 - 1
@@ -159,9 +161,9 @@ proc get_align_tags*(aln_q_seq: cstring; aln_t_seq: cstring; aln_seq_len: seq_co
   (tags.align_tags[k]).q_id = UINT_MAX
   return tags
 
-proc free_align_tags*(tags: ptr align_tags_t) =
+proc free_align_tags*(tags: ref align_tags_t) =
   dealloc(tags.align_tags)
-  dealloc(tags)
+  #dealloc(tags)
 
 proc allocate_aln_col*(col: ptr align_tag_col_t) =
   col.p_t_pos = calloc[seq_coor_t](col.size)
@@ -308,7 +310,7 @@ const
   STATIC_ALLOCATE* = false
 
 
-proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: seq_coor_t;
+proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_coor_t;
                              t_len: seq_coor_t; min_cov: int): ref consensus_data =
   var
     i: seq_coor_t
@@ -463,17 +465,18 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: seq_co
   var index: seq_coor_t
   var bb: char = '$'
   var ck: range[0 .. 4]
-  var cns_str: ptr seq[char]
-  var cns_int: ptr seq[int8]
+  var cns_str: ptr char #seq[char]
+  var cns_int: ptr int8 #seq[int8]
   var eqv: ptr seq[cint]
   var score0: cdouble
   new(consensus)
-  newSeq(consensus.sequence, t_len*2+1)
+  #newSeq(consensus.sequence, t_len*2+1)
+  consensus.sequence = newString(t_len*2+1)
   newSeq(consensus.eqv, tlen*2+1)
   # probably do not need +1
 
-  cns_str = addr consensus.sequence # alias
-  cns_int = cast[ptr seq[int8]](addr consensus.sequence) # alias
+  cns_str = addr consensus.sequence[0] # alias
+  cns_int = cast[ptr int8](addr consensus.sequence[0]) # alias
   eqv = addr consensus.eqv # alias
   index = 0
   ck = g_best_ck
@@ -540,19 +543,19 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: seq_co
 
 ## #const unsigned int K = 8;
 
-proc generate_consensus*(input_seq: seq[string]; n_seq: cuint; min_cov: cuint;
-                        K: cuint; min_idt: cdouble): ptr consensus_data =
-  var j: cuint
-  var seq_count: cuint
-  var aligned_seq_count: cuint
+proc generate_consensus*(input_seq: cStringArray; n_seq: int; min_cov: int;
+                        K: int; min_idt: cdouble): consensus_data =
+  var j: int
+  var seq_count: int
+  var aligned_seq_count: seq_coor_t
   var sa_ptr: seq_array
   var sda_ptr: seq_addr_array
   var kmer_match_ptr: ref kmer_match
   var arange: ref aln_range
-  var aln: ptr alignment
-  var tags_list: ptr ptr align_tags_t
+  var aln: ref alignment
+  var tags_list: seq[ref align_tags_t]
   ## #char * consensus;
-  var consensus: ptr consensus_data
+  var consensus: ref consensus_data
   var max_diff: cdouble
   max_diff = 1.0 - min_idt
   seq_count = n_seq
@@ -560,17 +563,17 @@ proc generate_consensus*(input_seq: seq[string]; n_seq: cuint; min_cov: cuint;
   ## #    printf("seq_len: %u %u\n", j, strlen(input_seq[j]));
   ## #};
   ## #fflush(stdout);
-  tags_list = calloc[ptr align_tags_t](seq_count)
+  newSeq(tags_list, seq_count)
   var lk_ptr = kmer_lookup_c.allocate_kmer_lookup(seq_coor_t(1 shl (K * 2)))
   sa_ptr = allocate_seq(len(input_seq[0]).seq_coor_t)
   sda_ptr = allocate_seq_addr(len(input_seq[0]).seq_coor_t)
-  add_sequence(0.seq_coor_t, K, input_seq[0], len(input_seq[0]).seq_coor_t, sda_ptr, sa_ptr, lk_ptr)
+  add_sequence(0.seq_coor_t, K.cuint, input_seq[0], len(input_seq[0]).seq_coor_t, sda_ptr, sa_ptr, lk_ptr)
   ## #mask_k_mer(1 << (K * 2), lk_ptr, 16);
   aligned_seq_count = 0
   j = 1
   while j < seq_count:
     ## #printf("seq_len: %ld %u\n", j, strlen(input_seq[j]));
-    kmer_match_ptr = find_kmer_pos_for_seq(input_seq[j.int], len(input_seq[j.int]).seq_coor_t, K,
+    kmer_match_ptr = find_kmer_pos_for_seq(input_seq[j.int], len(input_seq[j.int]).seq_coor_t, K.cuint,
         sda_ptr, lk_ptr)
     const
       INDEL_ALLOWENCE_0 = 6
@@ -588,44 +591,41 @@ proc generate_consensus*(input_seq: seq[string]; n_seq: cuint; min_cov: cuint;
       continue
     const
       INDEL_ALLOWENCE_2 = 150
-    aln = align(input_seq[j] + arange.s1, arange.e1 - arange.s1,
-              input_seq[0] + arange.s2, arange.e2 - arange.s2, INDEL_ALLOWENCE_2, 1)
+    aln = DW_banded.align((addr input_seq[j.int][0]) + arange.s1, arange.e1 - arange.s1,
+              (addr input_seq[0][0]) + arange.s2, arange.e2 - arange.s2, INDEL_ALLOWENCE_2, true)
     if aln.aln_str_size > 500 and
-        (cast[cdouble](aln.dist div cast[cdouble](aln.aln_str_size))) < max_diff:
+        (cast[cdouble](aln.dist) / cast[cdouble](aln.aln_str_size)) < max_diff:
       tags_list[aligned_seq_count] = get_align_tags(aln.q_aln_str, aln.t_aln_str,
-          aln.aln_str_size, arange, j, 0)
+          aln.aln_str_size, arange, j.uint32, 0.seq_coor_t)
       inc(aligned_seq_count)
-    free_aln_range(arange)
-    free_alignment(aln)
-    free_kmer_match(kmer_match_ptr)
+    #free_alignment(aln)
     inc(j)
   if aligned_seq_count > 0:
     consensus = get_cns_from_align_tags(tags_list, aligned_seq_count,
-                                      strlen(input_seq[0]), min_cov)
+                                      len(input_seq[0]).seq_coor_t, min_cov)
   else:
     ## # allocate an empty consensus sequence
-    consensus = calloc(1, sizeof((consensus_data)))
-    consensus.sequence = calloc(1, sizeof((char)))
-    consensus.eqv = calloc(1, sizeof(cuint))
+    new(consensus)
+    #newSeq(consensus.sequence, 1)
+    consensus.sequence = newString(1)
+    newSeq(consensus.eqv, 1)
   ## #free(consensus);
-  free_seq_addr_array(sda_ptr)
-  free_seq_array(sa_ptr)
-  free_kmer_lookup(lk_ptr)
   j = 0
   while j < aligned_seq_count:
     free_align_tags(tags_list[j])
     inc(j)
-  free(tags_list)
-  return consensus
+  #free(tags_list)
+  return consensus[]
 
-proc generate_utg_consensus*(input_seq: cstringArray; offset: ptr seq_coor_t;
-                            n_seq: cuint; min_cov: cuint; K: cuint; min_idt: cdouble): ref consensus_data =
-  var j: cuint
-  var seq_count: cuint
-  var aligned_seq_count: cuint
-  var arange: ptr aln_range
-  var aln: ptr alignment
-  var tags_list: ptr ptr align_tags_t
+proc generate_utg_consensus*(input_seq: cStringArray; in_offset: seq[seq_coor_t];
+                            n_seq: int; min_cov: int; K: int; min_idt: cdouble): consensus_data =
+  var offset: seq[seq_coor_t] = in_offset
+  var j: int
+  var seq_count: int
+  var aligned_seq_count: int
+  var arange: ref aln_range
+  var aln: ref alignment
+  var tags_list: seq[ref align_tags_t]
   ## #char * consensus;
   var consensus: ref consensus_data
   var max_diff: cdouble
@@ -642,56 +642,55 @@ proc generate_utg_consensus*(input_seq: cstringArray; offset: ptr seq_coor_t;
   ## #    };
   ## #    fflush(stdout);
   ## #    *
-  tags_list = calloc(seq_count + 1, sizeof(ptr align_tags_t))
-  utg_len = strlen(input_seq[0])
+  newSeq(tags_list, seq_count + 1)
+  utg_len = len(input_seq[0]).seq_coor_t
   aligned_seq_count = 0
-  arange = calloc(1, sizeof((aln_range)))
+  new(arange)
   arange.s1 = 0
-  arange.e1 = strlen(input_seq[0])
+  arange.e1 = len(input_seq[0]).seq_coor_t
   arange.s2 = 0
-  arange.e2 = strlen(input_seq[0])
-  tags_list[aligned_seq_count] = get_align_tags(input_seq[0], input_seq[0],
-      strlen(input_seq[0]), arange, 0, 0)
+  arange.e2 = len(input_seq[0]).seq_coor_t
+  tags_list[aligned_seq_count.int] = get_align_tags(input_seq[0], input_seq[0],
+      len(input_seq[0]).seq_coor_t, arange, 0, 0)
   inc(aligned_seq_count, 1)
   j = 1
   while j < seq_count:
     arange.s1 = 0
-    arange.e1 = strlen(input_seq[j]) - 1
+    arange.e1 = seq_coor_t(len(input_seq[j]) - 1)
     arange.s2 = 0
-    arange.e2 = strlen(input_seq[j]) - 1
-    r_len = strlen(input_seq[j])
+    arange.e2 = seq_coor_t(len(input_seq[j]) - 1)
+    r_len = len(input_seq[j]).seq_coor_t
     ## #printf("seq_len: %u %u\n", j, r_len);
-    if offset[j] < 0:
+    if offset[j.int] < 0:
       if (r_len + offset[j]) < 128:
         continue
       if r_len + offset[j] < utg_len:
         ## #printf("1: %ld %u %u\n", offset[j], r_len, utg_len);
-        aln = align(input_seq[j] - offset[j], r_len + offset[j], input_seq[0],
-                  r_len + offset[j], 500, 1)
+        aln = DW_banded.align((addr input_seq[j][0]) - offset[j], r_len + offset[j], (addr input_seq[0][0]),
+                  r_len + offset[j], 500, true)
       else:
         ## #printf("2: %ld %u %u\n", offset[j], r_len, utg_len);
-        aln = align(input_seq[j] - offset[j], utg_len, input_seq[0], utg_len, 500, 1)
+        aln = DW_banded.align((addr input_seq[j][0]) - offset[j], utg_len, (addr input_seq[0][0]), utg_len, 500, true)
       offset[j] = 0
     else:
       if offset[j] > utg_len - 128:
         continue
       if offset[j] + r_len > utg_len:
         ## #printf("3: %ld %u %u\n", offset[j], r_len, utg_len);
-        aln = align(input_seq[j], utg_len - offset[j], input_seq[0] + offset[j],
-                  utg_len - offset[j], 500, 1)
+        aln = DW_banded.align(addr input_seq[j][0], utg_len - offset[j], (addr input_seq[0][0]) + offset[j],
+                  utg_len - offset[j], 500, true)
       else:
         ## #printf("4: %ld %u %u\n", offset[j], r_len, utg_len);
-        aln = align(input_seq[j], r_len, input_seq[0] + offset[j], r_len, 500, 1)
+        aln = DW_banded.align(addr input_seq[j][0], r_len, (addr input_seq[0][0]) + offset[j], r_len, 500, true)
     if aln.aln_str_size > 500 and
-        (cast[cdouble](aln.dist div cast[cdouble](aln.aln_str_size))) < max_diff:
+        (cast[cdouble](aln.dist) / cast[cdouble](aln.aln_str_size)) < max_diff:
       tags_list[aligned_seq_count] = get_align_tags(aln.q_aln_str, aln.t_aln_str,
-          aln.aln_str_size, arange, j, offset[j])
+          aln.aln_str_size, arange, j.uint32, offset[j])
       inc(aligned_seq_count)
-    free_alignment(aln)
+    #free_alignment(aln)
     inc(j)
-  free_aln_range(arange)
   if aligned_seq_count > 0:
-    consensus = get_cns_from_align_tags(tags_list, aligned_seq_count, utg_len, 0)
+    consensus = get_cns_from_align_tags(tags_list, aligned_seq_count.seq_coor_t, utg_len, 0)
   else:
     ## # allocate an empty consensus sequence
     consensus.sequence = ""
@@ -701,10 +700,10 @@ proc generate_utg_consensus*(input_seq: cstringArray; offset: ptr seq_coor_t;
   while j < aligned_seq_count:
     free_align_tags(tags_list[j])
     inc(j)
-  free(tags_list)
-  return consensus
+  #free(tags_list)
+  return consensus[]
 
-proc free_consensus_data*(consensus: ptr consensus_data) =
-  free(consensus.sequence)
-  free(consensus.eqv)
-  free(consensus)
+#proc free_consensus_data*(consensus: ptr consensus_data) =
+#  free(consensus.sequence)
+#  free(consensus.eqv)
+#  free(consensus)
