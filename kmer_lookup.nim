@@ -53,16 +53,16 @@
 ## # #################################################################################$$
 ## # 
 
-import
-  common
+import common
+import algorithm
 
 var KMERMATCHINC*: cuint = 10000
-
+discard """
 proc compare_seq_coor*(a: pointer; b: pointer): cint =
   var arg1: ptr seq_coor_t = a
   var arg2: ptr seq_coor_t = b
   return (arg1[]) - (arg2[])
-
+"""
 proc allocate_kmer_lookup*(size: seq_coor_t): ptr kmer_lookup =
   var kl: ptr kmer_lookup
   ## #printf("%lu is allocated for kmer lookup\n", size);
@@ -374,7 +374,7 @@ proc find_best_aln_range*(km_ptr: ptr kmer_match; K: seq_coor_t; bin_size: seq_c
 
 proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
                           bin_width: seq_coor_t; count_th: seq_coor_t): ptr aln_range =
-  var d_coor: ptr seq_coor_t
+  var d_coor: seq[seq_coor_t]
   var hit_score: ptr seq_coor_t
   var hit_count: ptr seq_coor_t
   var last_hit: ptr seq_coor_t
@@ -409,7 +409,7 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
     d: seq_coor_t
   var arange: ptr aln_range
   arange = calloc(1, sizeof((aln_range)))
-  d_coor = calloc(km_ptr.count, sizeof((seq_coor_t)))
+  newSeq(d_coor, km_ptr.count)
   max_q = - 1
   max_t = - 1
   i = 0
@@ -418,7 +418,7 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match; K: seq_coor_t;
     max_q = if max_q > km_ptr.query_pos[i]: max_q else: km_ptr.query_pos[i]
     max_t = if max_t > km_ptr.target_pos[i]: max_q else: km_ptr.target_pos[i]
     inc(i)
-  qsort(d_coor, km_ptr.count, sizeof((seq_coor_t)), compare_seq_coor)
+  algorithm.sort(d_coor, order: algorithm.SortOrder.Descending)
   s = 0
   e = 0
   max_s = - 1
