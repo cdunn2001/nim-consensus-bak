@@ -143,6 +143,7 @@ type
 
 usePtr[align_tag_t]()
 usePtr[align_tag_col_t]()
+usePtr[msa_pos_t]()
 usePtr[msa_base_group_t]()
 usePtr[seq_coor_t]()
 usePtr[uint16]()
@@ -308,10 +309,10 @@ proc update_col*(col: ptr align_tag_col_t; p_t_pos: seq_coor_t; p_delta: uint8;
 proc get_msa_working_sapce*(max_t_len: cuint): ptr msa_pos_t =
   var msa_array: ptr msa_pos_t
   var i: cuint
-  msa_array = calloc(max_t_len, sizeof(ptr msa_pos_t))
+  msa_array = calloc[msa_pos_t](max_t_len)
   i = 0
   while i < max_t_len:
-    msa_array[i] = calloc(1, sizeof((msa_delta_group_t)))
+    msa_array[i] = calloc[msa_delta_group_t](1)
     msa_array[i].size = 8
     allocate_delta_group(msa_array[i])
     inc(i)
@@ -379,12 +380,9 @@ proc get_cns_from_align_tags*(tag_seqs: ptr ptr align_tags_t; n_tag_seqs: cuint;
   else:
     var msa_array: ptr msa_pos_t = nil
     if msa_array == nil:
-      var xxx: pid_t = syscall(__NR_gettid)
-      fprintf(stderr, "STATIC allocating: %d\x0A", xxx)
       msa_array = get_msa_working_sapce(100000)
     assert(t_len < 100000)
   ## # loop through every alignment
-  fprintf(stderr, "XX %d\x0A", n_tag_seqs)
   i = 0
   while i < n_tag_seqs:
     ## # for each alignment position, insert the alignment tag to msa_array
@@ -604,13 +602,6 @@ proc generate_consensus*(input_seq: cstringArray; n_seq: cuint; min_cov: cuint;
   var max_diff: cdouble
   max_diff = 1.0 - min_idt
   seq_count = n_seq
-  var xxx: pid_t = syscall(__NR_gettid)
-  fprintf(stderr, "XX n_seq:%d pid:\x0A", n_seq, xxx)
-  var
-    start: timespec
-    `end`: timespec
-  clock_gettime(CLOCK_MONOTONIC_RAW, addr(start))
-  var delta_us: uint64_t
   ## #for (j=0; j < seq_count; j++) {
   ## #    printf("seq_len: %u %u\n", j, strlen(input_seq[j]));
   ## #};
@@ -657,13 +648,6 @@ proc generate_consensus*(input_seq: cstringArray; n_seq: cuint; min_cov: cuint;
     free_alignment(aln)
     free_kmer_match(kmer_match_ptr)
     inc(j)
-  fprintf(stderr, "XX mydelta:%llfus for align()\x0A",
-          cast[clongdouble]((mydelta_us) div 1000000.0))
-  clock_gettime(CLOCK_MONOTONIC_RAW, addr(`end`))
-  delta_us = (`end`.tv_sec - start.tv_sec) * 1000000 +
-      (`end`.tv_nsec - start.tv_nsec) div 1000
-  fprintf(stderr, "XX delta:%llfus\x0A",
-          cast[clongdouble]((delta_us) div 1000000.0))
   if aligned_seq_count > 0:
     consensus = get_cns_from_align_tags(tags_list, aligned_seq_count,
                                       strlen(input_seq[0]), min_cov)
@@ -681,11 +665,6 @@ proc generate_consensus*(input_seq: cstringArray; n_seq: cuint; min_cov: cuint;
     free_align_tags(tags_list[j])
     inc(j)
   free(tags_list)
-  clock_gettime(CLOCK_MONOTONIC_RAW, addr(`end`))
-  delta_us = (`end`.tv_sec - start.tv_sec) * 1000000 +
-      (`end`.tv_nsec - start.tv_nsec) div 1000
-  fprintf(stderr, "XX len(cons) %d %llfus\x0A", strlen(consensus.sequence),
-          cast[clongdouble]((delta_us) div 1000000.0))
   return consensus
 
 proc generate_utg_consensus*(input_seq: cstringArray; offset: ptr seq_coor_t;
