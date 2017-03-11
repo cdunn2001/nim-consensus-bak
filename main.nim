@@ -208,29 +208,49 @@ proc simple(cargs: ConsensusArgs) =
   #var (consensus, seed_id) = get_consensus_without_trim(cargs)
   discard get_consensus_without_trim(cargs)
   """
-proc main() =
-  log("hi from main")
+
+proc main(min_cov=6, min_cov_aln=10, max_cov_aln=0, min_len_aln=0, min_n_read=10, max_n_read=500,
+          trim=false, output_full=false, output_multi=false,
+          min_idt="0.70", edge_tolerance=1000, trim_size=50,
+          n_core=24): int =
+  log("main(n_core=", $n_core, ")")
+  threadpool.setMaxPoolSize(n_core) # TODO(CD): Figure out what this does.
   let config: Config = (
-    min_cov: 1, # default 6
+    min_cov: 1, # min_cov
     K: 8, # not cli
-    max_n_read: 500,
-    min_idt: 0.70f32, # default also
-    edge_tolerance: 1000,
-    trim_size: 50,
-    min_cov_aln: 10,
-    max_cov_aln: 0)
-  let min_n_read = 10
-  let min_len_aln = 0
+    max_n_read: max_n_read,
+    min_idt: float32(strutils.parseFloat(min_idt)),
+    edge_tolerance: edge_tolerance,
+    trim_size: trim_size,
+    min_cov_aln: min_cov_aln,
+    max_cov_aln: max_cov_aln)
   for q in get_seq_data(config, min_n_read, min_len_aln):
     var (seqs, seed_id, config_same) = q
     #log("len(seqs)=", $(len(seqs), ", seed_id=", seed_id, "config=", config))
     var cargs: ConsensusArgs = (inseqs: seqs, seed_id: seed_id, config: config)
-    #spawn process_consensus(cargs)
-    process_consensus(cargs)
-    #spawn os.sleep(1000)
-    #spawn simple(cargs)
+    if n_core == 0:
+      process_consensus(cargs)
+    else:
+      spawnX process_consensus(cargs)
+      #spawn os.sleep(1000)
+      #spawn simple(cargs)
   sync()
+  result = 0
 
 when isMainModule:
-  #threadpool.setMaxPoolSize(1) #n_cores)
-  main()
+  import "cligen/cligen"
+  cligen.dispatch(main, short={}, help={
+    "min_idt": "minimum identity of the alignments used for correction (32-bit float)",
+    "edge_tolerance": "for trimming, the there is unaligned edge leng > edge_tolerance, ignore the read",
+    "trim": "trim the input sequence with k-mer spare dynamic programming to find the mapped range",
+    "trim_size": "the size for triming both ends from initial sparse aligned region",
+    "output_multi": "output multi correct regions",
+    "output_full": "output uncorrected regions too",
+    "min_n_read": "1 + minimum number of reads used in generating the consensus; a seed read with fewer alignments will be completely ignored",
+    "max_n_read": "1 + maximum number of reads used in generating the consensus",
+    "n_core": "number of processes used for generating consensus (not sure this limit works yet); 0 for main process only",
+    "min_cov": "minimum coverage to break the consensus",
+    "min_cov_aln": "minimum coverage of alignment data; a seed read with less than MIN_COV_ALN average depth of coverage will be completely ignored",
+    "max_cov_aln": "maximum coverage of alignment data; a seed read with more than MAX_COV_ALN average depth of coverage of the longest alignments will be capped, excess shorter alignments will be ignored",
+    "min_len_aln": "minimum length of a sequence in an alignment to be used in consensus; any shorter sequence will be completely ignored",
+  })
