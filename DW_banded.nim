@@ -67,7 +67,10 @@ proc compare_d_path*(arg1, arg2: d_path_data2): int =
     return arg1.d - arg2.d
 
 proc d_path_sort*(path_base: var seq[d_path_data2], max_idx: int32) =
-  discard #algorithm.sort(path_base, compare_d_path)
+  if max_idx == 1:
+    return
+  log("sort:", $len(path_base), " max:", $max_idx)
+  algorithm.sort(path_base, compare_d_path)
   #void d_path_sort( d_path_data2 * base, unsigned long max_idx)
   #qsort(base, max_idx, sizeof(d_path_data2), compare_d_path);
 
@@ -241,7 +244,6 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
       align_rtn.aln_str_size = (x + y + d) div 2
       align_rtn.aln_q_s = 0
       align_rtn.aln_t_s = 0
-      #log("sort:", $len(d_path), " max:", $max_idx)
       d_path_sort(d_path, max_idx)
       ## #print_d_path(d_path, max_idx);
       if get_aln_str:
