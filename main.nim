@@ -214,7 +214,8 @@ proc main(min_cov=6, min_cov_aln=10, max_cov_aln=0, min_len_aln=0, min_n_read=10
           min_idt="0.70", edge_tolerance=1000, trim_size=50,
           n_core=24): int =
   log("main(n_core=", $n_core, ")")
-  threadpool.setMaxPoolSize(n_core) # TODO(CD): Figure out what this does.
+  if n_core > 0:
+    threadpool.setMaxPoolSize(n_core) # This seems to take effect after some threads have finished. Not sure yet. ~cd
   let config: Config = (
     min_cov: 1, # min_cov
     K: 8, # not cli
