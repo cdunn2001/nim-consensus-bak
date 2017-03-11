@@ -41,7 +41,7 @@ proc get_longest_sorted_reads(seqs: seq[string], max_n_read, max_cov_aln: int): 
   #seqs[1 .. seqs.high].sort(proc (x,y: string): int = cmp(y.len, x.len))
   sorted_seqs.sort(proc (x,y: string): int = cmp(y.len, x.len))
   sorted_seqs.insert([seqs[0]], 0)
-  log("sortlen", $len(sorted_seqs))
+  #log("sortlen", $len(sorted_seqs))
   return get_longest_reads(sorted_seqs, max_n_read, max_cov_aln)
 type
   Config = tuple
@@ -77,7 +77,7 @@ iterator get_seq_data(config: Config, min_n_read, min_len_aln: int): auto =
     case read_id
     of "+":
       if len(seqs) >= min_n_read and read_cov div seed_len >= config.min_cov_aln:
-          log("len(seqs) ", $len(seqs))
+          #log("len(seqs) ", $len(seqs))
           seqs = get_longest_sorted_reads(seqs, config.max_n_read, config.max_cov_aln)
           yield (seqs, seed_id, config)
       seqs = @[]
@@ -118,12 +118,12 @@ proc get_con(args: ConsensusArgs): ConsensusResult =
     if len(seqs) > config.max_n_read:
         seqs = get_longest_sorted_reads(seqs, config.max_n_read, config.max_cov_aln)
     poo.poo()
-    log("About to generate_con ", $len(seqs), " ", $n_seq)
-    log("pseq:", $(cast[ByteAddress]((addr(seqs[0])))), " eg ", $len(seqs[0]))
+    #log("About to generate_con ", $len(seqs), " ", $n_seq)
+    #log("pseq:", $(cast[ByteAddress]((addr(seqs[0])))), " eg ", $len(seqs[0]))
     var cseqs: cStringArray
     copy_seq_ptrs(cseqs, seqs)
     var consensus_data = falcon.generate_consensus(cseqs, n_seq, config.min_cov, config.K, config.min_idt)
-    log("cr:", repr(consensus_data))
+    #log("cr:", repr(consensus_data))
     var consensus = consensus_data.sequence
     #echo "cs:", addr(consensus_data.sequence), " ", addr consensus, " ", addr consensus_data.sequence[0], " ", addr consensus[0]
     #eff_cov = consensus_data_ptr.eff_cov[:len(consensus)]
@@ -176,7 +176,7 @@ proc process_consensus(cargs: ConsensusArgs) = #{.thread} =
     """
     #var (consensus, seed_id) = get_consensus_without_trim(cargs)
     var (consensus, seed_id) = get_con(cargs)
-    log($len(consensus), " in seed ", seed_id)
+    #log("len(consensus)=", $len(consensus), " in seed ", seed_id)
     if len(consensus) < 500:
         return
     if false: # args.output_full:
@@ -223,7 +223,7 @@ proc main() =
   let min_len_aln = 0
   for q in get_seq_data(config, min_n_read, min_len_aln):
     var (seqs, seed_id, config_same) = q
-    log($(len(seqs), seed_id, config))
+    #log("len(seqs)=", $(len(seqs), ", seed_id=", seed_id, "config=", config))
     var cargs: ConsensusArgs = (inseqs: seqs, seed_id: seed_id, config: config)
     #spawn process_consensus(cargs)
     process_consensus(cargs)
