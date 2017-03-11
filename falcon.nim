@@ -341,7 +341,6 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
     if msa_array == nil:
       msa_array = get_msa_working_sapce(100000)
     assert(t_len < 100000)
-  echo "t_len:", t_len
   ## # loop through every alignment
   i = 0
   while i < n_tag_seqs:
@@ -518,7 +517,6 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
     ck = g_best_aln_col.best_p_q_base
     g_best_aln_col = addr msa_array[i].delta[j].base[ck]
     if bb != '-':
-      echo "cns_str:", index, " ", bb
       cns_str[index] = bb
       eqv[index] = cint(score0) - cint(g_best_aln_col.score)
       ## #printf("C %d %d %c %lf %d %d\n", i, index, bb, g_best_aln_col->score, coverage[i], eqv[index] );
@@ -604,7 +602,6 @@ proc generate_consensus*(input_seq: cStringArray; n_seq: int; min_cov: int;
       INDEL_ALLOWENCE_2 = 150
     aln = DW_banded.align((addr input_seq[j.int][0]) + arange.s1, arange.e1 - arange.s1,
               (addr input_seq[0][0]) + arange.s2, arange.e2 - arange.s2, INDEL_ALLOWENCE_2, true)
-    echo "align=", repr(aln)
     if (aln.aln_str_size > 500) and ((cdouble(aln.dist) / cdouble(aln.aln_str_size)) < max_diff):
       tags_list[aligned_seq_count] = get_align_tags(aln.q_aln_str, aln.t_aln_str,
           aln.aln_str_size, arange, j.uint32, 0.seq_coor_t)

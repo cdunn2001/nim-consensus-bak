@@ -215,7 +215,7 @@ proc find_kmer_pos_for_seq*(cseq: cstring; seq_len: seq_coor_t; K: cuint;
   # TODO(CD): Isn't this call redundant later?
   kmer_bv = get_kmer_bitvector(addr sa[0], K)
   half_K = K shr 1
-  echo "hk:", half_K, " K:", K, " bv:", repr(kmer_bv)
+  #echo "hk:", half_K, " K:", K, " bv:", repr(kmer_bv)
   i = 0
   while i < seq_len - K.seq_coor_t:
     kmer_bv = get_kmer_bitvector(addr sa[i], K)
@@ -236,7 +236,6 @@ proc find_kmer_pos_for_seq*(cseq: cstring; seq_len: seq_coor_t; K: cuint;
       result.target_pos.add(kmer_pos)
       inc(result.count, 1)
     inc(i, half_K.seq_coor_t)
-  echo "result:", repr(result)
   #return result # implicit
 
 proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;

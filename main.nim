@@ -204,7 +204,7 @@ proc process_consensus(cargs: ConsensusArgs) = #{.thread} =
         echo cns[cns.high-1]
 discard """
 proc simple(cargs: ConsensusArgs) =
-  echo "hi"
+  echo "hi in simple()"
   #var (consensus, seed_id) = get_consensus_without_trim(cargs)
   discard get_consensus_without_trim(cargs)
   """
