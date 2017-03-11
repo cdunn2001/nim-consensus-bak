@@ -99,12 +99,6 @@ proc init_seq_array*(sa: var seq_array; size: seq_coor_t) =
 proc allocate_seq*(size: seq_coor_t): seq_array =
   newSeq(result, size)
   init_seq_array(result, size)
-  discard """
-  var sa: seq_array
-  sa = cast[seq_array](alloc(size * sizeof((base))))
-  init_seq_array(sa, size)
-  return sa
-  """
 
 proc allocate_seq_addr*(size: seq_coor_t): seq_addr_array =
   return calloc0[seq_addr](size)
@@ -123,7 +117,7 @@ proc get_kmer_bitvector*(sa: ptr base; K: cuint): seq_coor_t =
   i = 0
   while i < K:
     kmer_bv = kmer_bv shl 2
-    kmer_bv = kmer_bv or ((cast[int](sa[i.int])) and 0x00000003)
+    kmer_bv = kmer_bv or ((int(sa[i.int])) and 0x00000003)
     inc(i)
   return kmer_bv
 
@@ -284,7 +278,7 @@ proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
       t_min = km_ptr.target_pos[i]
     if km_ptr.query_pos[i] > t_max:
       t_max = km_ptr.target_pos[i]
-    d = cast[clong](km_ptr.query_pos[i]) - cast[clong](km_ptr.target_pos[i])
+    d = clong(km_ptr.query_pos[i]) - clong(km_ptr.target_pos[i])
     if d < d_min:
       d_min = d
     if d > d_max:
@@ -296,8 +290,8 @@ proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
   newSeq(t_coor, km_ptr.count)
   i = 0
   while i < km_ptr.count:
-    d = cast[clong]((km_ptr.query_pos[i])) - cast[clong]((km_ptr.target_pos[i]))
-    inc(d_count[(d - d_min) div cast[clong](bin_size)], 1)
+    d = clong((km_ptr.query_pos[i])) - clong((km_ptr.target_pos[i]))
+    inc(d_count[(d - d_min) div clong(bin_size)], 1)
     q_coor[i] = INT_MAX
     t_coor[i] = INT_MAX
     inc(i)
@@ -306,20 +300,20 @@ proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
   max_k_mer_bin = INT_MAX
   i = 0
   while i < km_ptr.count:
-    d = cast[clong]((km_ptr.query_pos[i])) - cast[clong]((km_ptr.target_pos[i]))
-    if d_count[(d - d_min) div cast[clong](bin_size)] > max_k_mer_count:
-      max_k_mer_count = d_count[(d - d_min) div cast[clong](bin_size)]
-      max_k_mer_bin = (d - d_min) div cast[clong](bin_size)
+    d = clong((km_ptr.query_pos[i])) - clong((km_ptr.target_pos[i]))
+    if d_count[(d - d_min) div clong(bin_size)] > max_k_mer_count:
+      max_k_mer_count = d_count[(d - d_min) div clong(bin_size)]
+      max_k_mer_bin = (d - d_min) div clong(bin_size)
     inc(i)
   ## #printf("k_mer: %lu %lu\n" , max_k_mer_count, max_k_mer_bin);
   if max_k_mer_bin != INT_MAX and max_k_mer_count > count_th:
     i = 0
     while i < km_ptr.count:
-      d = cast[clong]((km_ptr.query_pos[i])) - cast[clong]((km_ptr.target_pos[i]))
-      if abs(((d - d_min) div cast[clong](bin_size)) - max_k_mer_bin) > 5:
+      d = clong((km_ptr.query_pos[i])) - clong((km_ptr.target_pos[i]))
+      if abs(((d - d_min) div clong(bin_size)) - max_k_mer_bin) > 5:
         inc(i)
         continue
-      if d_count[(d - d_min) div cast[clong](bin_size)] > count_th:
+      if d_count[(d - d_min) div clong(bin_size)] > count_th:
         q_coor[j] = km_ptr.query_pos[i]
         t_coor[j] = km_ptr.target_pos[i]
         ## #printf("d_count: %lu %lu\n" ,i, d_count[(d - d_min)/ (long int) bin_size]);
@@ -412,7 +406,7 @@ proc find_best_aln_range2*(km_ptr: ptr kmer_match;
   max_s = - 1
   max_e = - 1
   max_span = - 1
-  delta = cast[seq_coor_t]((0.05 * float64(max_q + max_t)))
+  delta = seq_coor_t((0.05 * float64(max_q + max_t)))
   d_len = km_ptr.count
   d_s = - 1
   d_e = - 1

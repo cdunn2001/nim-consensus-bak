@@ -63,6 +63,8 @@ const
   UINT16_MAX = uint16.high.int32
   UINT_MAX = uint32.high
 
+  MSA_BASE_GROUP_LEN = 5
+
 type
   align_tag_t* = object
     t_pos*: seq_coor_t
@@ -91,7 +93,7 @@ type
     score*: cdouble
 
   msa_base_group_t* = object
-    base*: ptr align_tag_col_t
+    base*: array[0 .. <MSA_BASE_GROUP_LEN, align_tag_col_t] # array of length 5
 
   msa_delta_group_t* = object
     size*: uint8
@@ -166,16 +168,17 @@ proc free_align_tags*(tags: ref align_tags_t) =
   #dealloc(tags)
 
 proc allocate_aln_col*(col: ptr align_tag_col_t) =
-  col.p_t_pos = calloc[seq_coor_t](col.size)
-  col.p_delta = calloc[uint8](col.size)
-  col.p_q_base = calloc[char](col.size)
-  col.link_count = calloc[uint16](col.size)
+  col.p_t_pos = calloc0[seq_coor_t](col.size)
+  col.p_delta = calloc0[uint8](col.size)
+  col.p_q_base = calloc0[char](col.size)
+  col.link_count = calloc0[uint16](col.size)
 
 proc realloc_aln_col*(col: ptr align_tag_col_t) =
-  col.p_t_pos = realloc[seq_coor_t](col.p_t_pos, col.size)
-  col.p_delta = realloc[uint8](col.p_delta, col.size)
-  col.p_q_base = realloc[char](col.p_q_base, col.size)
-  col.link_count = realloc[uint16](col.link_count, col.size)
+  #echo "realloc_aln_col @", cast[ByteAddress](col), " to ", col.size
+  col.p_t_pos = realloc0[seq_coor_t](col.p_t_pos, col.size)
+  col.p_delta = realloc0[uint8](col.p_delta, col.size)
+  col.p_q_base = realloc0[char](col.p_q_base, col.size)
+  col.link_count = realloc0[uint16](col.link_count, col.size)
 
 proc free_aln_col*(col: ptr align_tag_col_t) =
   dealloc(col.p_t_pos)
@@ -188,10 +191,10 @@ proc allocate_delta_group*(g: ptr msa_delta_group_t) =
     i: uint8
     j: cint
   g.max_delta = 0
-  g.delta = calloc[msa_base_group_t](g.size)
+  g.delta = calloc0[msa_base_group_t](g.size)
   i = 0
   while i < g.size:
-    g.delta[i].base = calloc[align_tag_col_t](5)
+    #g.delta[i].base = calloc[align_tag_col_t](5)
     j = 0
     while j < 5:
       g.delta[i].base[j].size = 8
@@ -207,10 +210,10 @@ proc realloc_delta_group*(g: ptr msa_delta_group_t; new_size: uint8) =
     es: uint16
   bs = g.size
   es = new_size
-  g.delta = calloc[msa_base_group_t](new_size)
+  g.delta = calloc0[msa_base_group_t](new_size)
   i = bs
   while i < es:
-    g.delta[i].base = calloc[align_tag_col_t](5)
+    #g.delta[i].base = calloc[align_tag_col_t](5)
     j = 0
     while j < 5:
       g.delta[i].base[j].size = 8
@@ -230,7 +233,7 @@ proc free_delta_group*(g: ptr msa_delta_group_t) =
     while j < 5:
       free_aln_col(addr(g.delta[i].base[j]))
       inc(j)
-    dealloc(g.delta[i].base)
+    #dealloc(g.delta[i].base)
     inc(i)
   dealloc(g.delta)
 
@@ -279,14 +282,13 @@ proc clean_msa_working_space*(msa_array: ptr msa_pos_t; max_t_len: cuint) =
     i: cuint
     j: cuint
     k: cuint
-  var col: ptr align_tag_col_t
   i = 0
   while i < max_t_len:
     j = 0
     while j < msa_array[i].max_delta + 1:
       k = 0
       while k < 5:
-        col = msa_array[i].delta[j].base + k
+        let col: ptr align_tag_col_t = addr msa_array[i].delta[j].base[k]
         ## #
         ## #                for (c =0; c < col->size; c++) {
         ## #                    col->p_t_pos[c] = 0;
@@ -384,7 +386,6 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
   ## # char base;
   var g_best_score: cdouble
   ## # char best_mark;
-  var aln_col: ptr align_tag_col_t
   g_best_score = - 1
   i = 0
   while i < t_len:
@@ -394,7 +395,7 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
     while j <= seq_coor_t(msa_array[i].max_delta):
       ## # loop through every delta position
       kk = 0
-      while kk < 5:
+      while kk < MSA_BASE_GROUP_LEN:
         ## # loop through diff bases of the same delta posiiton
         ## #
         ## #                    switch (kk) {
@@ -405,7 +406,7 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
         ## #                        case 4: base = '-'; break;
         ## #                    }
         ## #                    
-        aln_col = msa_array[i].delta[j].base + kk
+        let aln_col: ptr align_tag_col_t = addr msa_array[i].delta[j].base[kk]
         if aln_col.count >= 0'u16:
           var score: cdouble
           var best_score: cdouble = -1
@@ -435,12 +436,12 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
             else:
               pkk = 4
             if aln_col.p_t_pos[ck] == - 1:
-              score = cast[cdouble](aln_col.link_count[ck]) -
-                  cast[cdouble](coverage[i]) * 0.5
+              score = cdouble(aln_col.link_count[ck]) -
+                  cdouble(coverage[i]) * 0.5
             else:
               score = msa_array[pi].delta[pj].base[pkk].score +
-                  cast[cdouble](aln_col.link_count[ck]) -
-                  cast[cdouble](coverage[i]) * 0.5
+                  cdouble(aln_col.link_count[ck]) -
+                  cdouble(coverage[i]) * 0.5
             ## # best_mark = ' ';
             if score > best_score:
               best_score = score
@@ -515,11 +516,11 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
     if i == - 1 or index >= t_len * 2: break
     j = seq_coor_t(g_best_aln_col.best_p_delta)
     ck = g_best_aln_col.best_p_q_base
-    g_best_aln_col = msa_array[i].delta[j].base + ck
+    g_best_aln_col = addr msa_array[i].delta[j].base[ck]
     if bb != '-':
       echo "cns_str:", index, " ", bb
       cns_str[index] = bb
-      eqv[index] = cast[cint](score0) - cast[cint](g_best_aln_col.score)
+      eqv[index] = cint(score0) - cint(g_best_aln_col.score)
       ## #printf("C %d %d %c %lf %d %d\n", i, index, bb, g_best_aln_col->score, coverage[i], eqv[index] );
       inc(index)
   ## # reverse the sequence
@@ -596,15 +597,15 @@ proc generate_consensus*(input_seq: cStringArray; n_seq: int; min_cov: int;
     if arange.e1 - arange.s1 < 100 or arange.e2 - arange.s2 < 100 or
         abs((arange.e1 - arange.s1) - (arange.e2 - arange.s2)) >
         (int)(0.5 * INDEL_ALLOWENCE_1 *
-        cast[float](arange.e1 - arange.s1 + arange.e2 - arange.s2)):
+        float(arange.e1 - arange.s1 + arange.e2 - arange.s2)):
       inc(j)
       continue
     const
       INDEL_ALLOWENCE_2 = 150
     aln = DW_banded.align((addr input_seq[j.int][0]) + arange.s1, arange.e1 - arange.s1,
               (addr input_seq[0][0]) + arange.s2, arange.e2 - arange.s2, INDEL_ALLOWENCE_2, true)
-    if aln.aln_str_size > 500 and
-        (cast[cdouble](aln.dist) / cast[cdouble](aln.aln_str_size)) < max_diff:
+    echo "align=", repr(aln)
+    if (aln.aln_str_size > 500) and ((cdouble(aln.dist) / cdouble(aln.aln_str_size)) < max_diff):
       tags_list[aligned_seq_count] = get_align_tags(aln.q_aln_str, aln.t_aln_str,
           aln.aln_str_size, arange, j.uint32, 0.seq_coor_t)
       inc(aligned_seq_count)
@@ -695,7 +696,7 @@ proc generate_utg_consensus*(input_seq: cStringArray; in_offset: seq[seq_coor_t]
         ## #printf("4: %ld %u %u\n", offset[j], r_len, utg_len);
         aln = DW_banded.align(addr input_seq[j][0], r_len, (addr input_seq[0][0]) + offset[j], r_len, 500, true)
     if aln.aln_str_size > 500 and
-        (cast[cdouble](aln.dist) / cast[cdouble](aln.aln_str_size)) < max_diff:
+        cdouble(aln.dist) / cdouble(aln.aln_str_size) < max_diff:
       tags_list[aligned_seq_count] = get_align_tags(aln.q_aln_str, aln.t_aln_str,
           aln.aln_str_size, arange, j.uint32, offset[j])
       inc(aligned_seq_count)

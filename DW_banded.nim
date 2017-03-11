@@ -144,7 +144,6 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
   var d_path_idx: int32 = 0
   var max_idx: int32 = 0
   var d_path: seq[d_path_data2]
-  var d_path_aux: ptr d_path_data2
   var aln_path: seq[path_point]
   var aln_path_idx: seq_coor_t
   var align_rtn: ref alignment
@@ -153,7 +152,7 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
   var aligned: bool = false
   ## #printf("debug: %ld %ld\n", q_len, t_len);
   ## #printf("%s\n", query_seq);
-  max_d = cast[seq_coor_t](0.3 * cast[float](q_len + t_len))
+  max_d = seq_coor_t(0.3 * float(q_len + t_len))
   band_size = band_tolerance * 2
   newSeq(V, (max_d * 2 + 1))
   newSeq(U, (max_d * 2 + 1))
@@ -251,7 +250,7 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
         ck = k
         aln_path_idx = 0
         while cd >= 0 and aln_path_idx < q_len + t_len + 1:
-          d_path_aux = cast[ptr d_path_data2](get_dpath_idx(cd, ck, max_idx, d_path))
+          let d_path_aux: ref d_path_data2 = get_dpath_idx(cd, ck, max_idx, d_path)
           aln_path[aln_path_idx].x = d_path_aux.x2
           aln_path[aln_path_idx].y = d_path_aux.y2
           inc(aln_path_idx)

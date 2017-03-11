@@ -160,6 +160,8 @@ proc calloc0*[T](n: Natural): ptr T =
   return cast[ptr T](alloc0(n * sizeof(T)))
 proc realloc*[T](p: ptr T, n: Natural): ptr T =
   return cast[ptr T](alloc(n * sizeof(T)))
+proc realloc0*[T](p: ptr T, n: Natural): ptr T =
+  return cast[ptr T](alloc0(n * sizeof(T)))
 
 proc log*(msgs: varargs[string]) =
   for s in msgs:
