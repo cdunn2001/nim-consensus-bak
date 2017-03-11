@@ -225,8 +225,8 @@ proc main() =
     var (seqs, seed_id, config_same) = q
     log($(len(seqs), seed_id, config))
     var cargs: ConsensusArgs = (inseqs: seqs, seed_id: seed_id, config: config)
-    spawn process_consensus(cargs)
-    #process_consensus(cargs)
+    #spawn process_consensus(cargs)
+    process_consensus(cargs)
     #spawn os.sleep(1000)
     #spawn simple(cargs)
   sync()

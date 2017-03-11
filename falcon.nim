@@ -324,6 +324,7 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
   newSeq(coverage, t_len)
   newSeq(local_nbase, t_len)
   when not defined(STATIC_ALLOCATE):
+    log("no static_ALLOCATE")
     var msa_array: ptr msa_pos_t = nil
     msa_array = calloc[msa_pos_t](t_len)
     i = 0
@@ -333,10 +334,12 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
       allocate_delta_group(msa_array[i])
       inc(i)
   else:
+    log("STATIC_ALLOCATE")
     var msa_array: ptr msa_pos_t = nil
     if msa_array == nil:
       msa_array = get_msa_working_sapce(100000)
     assert(t_len < 100000)
+  echo "t_len:", t_len
   ## # loop through every alignment
   i = 0
   while i < n_tag_seqs:
@@ -514,6 +517,7 @@ proc get_cns_from_align_tags*(tag_seqs: seq[ref align_tags_t]; n_tag_seqs: seq_c
     ck = g_best_aln_col.best_p_q_base
     g_best_aln_col = msa_array[i].delta[j].base + ck
     if bb != '-':
+      echo "cns_str:", index, " ", bb
       cns_str[index] = bb
       eqv[index] = cast[cint](score0) - cast[cint](g_best_aln_col.score)
       ## #printf("C %d %d %c %lf %d %d\n", i, index, bb, g_best_aln_col->score, coverage[i], eqv[index] );
@@ -563,6 +567,10 @@ proc generate_consensus*(input_seq: cStringArray; n_seq: int; min_cov: int;
   ## #    printf("seq_len: %u %u\n", j, strlen(input_seq[j]));
   ## #};
   ## #fflush(stdout);
+  #var ii: int = 0
+  #while ii < seq_count:
+  #  echo "seq_len:", ii, " ", len(input_seq[ii])
+  #  inc(ii)
   newSeq(tags_list, seq_count)
   var lk_ptr = kmer_lookup_c.allocate_kmer_lookup(seq_coor_t(1 shl (K * 2)))
   sa_ptr = allocate_seq(len(input_seq[0]).seq_coor_t)

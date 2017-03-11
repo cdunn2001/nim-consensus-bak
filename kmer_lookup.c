@@ -249,6 +249,7 @@ kmer_match * find_kmer_pos_for_seq( char * seq, seq_coor_t seq_len, unsigned int
 
     kmer_bv = get_kmer_bitvector(sa, K);
     half_K = K >> 1;
+    printf("half_K=%d K=%d\n", half_K, K)
     for (i = 0; i < seq_len - K;  i += half_K) {
         kmer_bv = get_kmer_bitvector(sa + i, K);
         if (lk[kmer_bv].start == INT_MAX) {  //for high count k-mers
@@ -282,6 +283,10 @@ kmer_match * find_kmer_pos_for_seq( char * seq, seq_coor_t seq_len, unsigned int
         }
     }
     free(sa);
+    printf("result: %d\n", kmer_match_rtn->count);
+    for (int ii=0; ii<kmer_match_rtn->count; ++ii) {
+        printf("q: %d t:%d\n", kmer_match_rtn->query_pos[ii], kmer_match_rtn->target_pos[ii]);
+    }
     return kmer_match_rtn;
 }
 
