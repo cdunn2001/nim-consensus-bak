@@ -1,3 +1,4 @@
+## vim: sw=2 ts=2 sts=2 tw=80 et:
 ## #
 ## #  =====================================================================================
 ## # 
@@ -55,22 +56,36 @@
 ## #
 ## #
 
+{.passC: "-g -Wall -I.".}
+{.compile: "data_sorter.c".}
+
 import common
-from algorithm import nil
+#import algorithm
 
 common.usePtr[char]()
+#common.usePtr[d_path_data2]()
 
+# Was used by sort. Still used by bsearch.
 proc compare_d_path*(arg1, arg2: d_path_data2): int =
-  if arg1.d - arg2.d == 0:
-    return arg1.k - arg2.k
+  log("Comparing:", repr(arg1), " to ", repr(arg2))
+  if arg1.d == arg2.d:
+    if arg1.k == arg2.k:
+      result = 0
+    else:
+      result = if arg1.k < arg2.k: -1 else: 1
   else:
-    return arg1.d - arg2.d
+    result = if arg1.d < arg2.d: -1 else: 1
+  log("result=", $result)
+
+proc d_path_data2sort*(data: pointer; max_idx: ByteAddress, size: ByteAddress) {.
+    cdecl, importc: "d_path_data2sort", header: "data_sorter.h".}
 
 proc d_path_sort*(path_base: var seq[d_path_data2], max_idx: int32) =
   if max_idx == 1:
     return
-  log("sort:", $len(path_base), " max:", $max_idx)
-  algorithm.sort(path_base, compare_d_path)
+  log("sort:", $len(path_base), " max_idx:", $max_idx)
+  #path_base.sort(compare_d_path)
+  d_path_data2sort(pointer(addr path_base[0]), ByteAddress(max_idx), ByteAddress(sizeof(d_path_data2)));
   #void d_path_sort( d_path_data2 * base, unsigned long max_idx)
   #qsort(base, max_idx, sizeof(d_path_data2), compare_d_path);
 
@@ -87,30 +102,33 @@ proc binarySearch*[T](a: openArray[T], length: int, key: T, cmp: proc (x, y: T):
   if result >= length or cmp(a[result], key) != 0: result = -1
 
 proc get_dpath_idx(d: seq_coor_t; k: seq_coor_t; max_idx: int; # culong?
-                   path_base: seq[d_path_data2]): ref d_path_data2 =
-  var rtn: ref d_path_data2
+                   path_base: seq[d_path_data2]): d_path_data2 =
+  var rtn: d_path_data2
   var d_tmp: d_path_data2
-  #log("d_tmp:", repr(d_tmp))
   d_tmp.d = d
   d_tmp.k = k
-  var found = binarySearch(path_base, max_idx + 1, d_tmp, compare_d_path)
+  #log("d_tmp:", repr(d_tmp), ", len(path_base)=", $len(path_base), ", max_idx=", $max_idx)
+  #log(repr(path_base[0]))
+  #log(repr(path_base[1]))
+  #log(repr(path_base[2236]))
+  #log("...")
+  var found = binarySearch(path_base, max_idx, d_tmp, compare_d_path)
+  #log("found:", $found)
   if found == -1:
-    return nil
-  new(rtn)
-  rtn[] = path_base[found]
+    raise newException(ValueError, "Could not find d,k in path_base") # TODO(CD): encode key into msg
+  rtn = path_base[found]
+  #log("dp ", $repr(rtn))
   ## #printf("dp %ld %ld %ld %ld %ld %ld %ld\n", (rtn)->d, (rtn)->k, (rtn)->x1, (rtn)->y1, (rtn)->x2, (rtn)->y2, (rtn)->pre_k);
   return rtn
 
-discard """
-proc print_d_path*(base: ptr d_path_data2; max_idx: culong) =
-  var idx: culong
+#discard """
+proc print_d_path*(base: var seq[d_path_data2]; max_idx: int) =
+  var idx: int
   idx = 0
   while idx < max_idx:
-    printf("dp %ld %d %d %d %d %d %d %d\x0A", idx, (base + idx).d, (base + idx).k,
-           (base + idx).x1, (base + idx).y1, (base + idx).x2, (base + idx).y2,
-           (base + idx).pre_k)
+    echo "dp ", idx, " ", repr(base[idx.int])
     inc(idx)
-"""
+#"""
 
 proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
            t_len: seq_coor_t; band_tolerance: seq_coor_t; get_aln_str: bool): ref alignment =
@@ -163,8 +181,8 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
   ## # We should probably use hashmap to store the backtracing information to save memory allocation time
   ## # This O(MN) block allocation scheme is convient for now but it is slower for very long sequences
   let ssize = max_d * (band_size + 1) * 2 + 1
-  if ssize > 1000000:
-    raise newException(ValueError, "too big")
+  #if ssize > 1000000:
+  #  raise newException(ValueError, "too big") # Just to catch bugs during development.
 
   #log("Big seq:", $ssize)
   newSeq(d_path, (max_d * (band_size + 1) * 2 + 1)) # maybe drop +1?
@@ -236,7 +254,7 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
     ## # max_k ++;
     ## # min_k --;
     ## # For debuging
-    ## # printf("min_max_k,d, %ld %ld %ld\n", min_k, max_k, d);
+    #printf("min_max_k,d, %ld %ld %ld\n", min_k, max_k, d);
     if aligned == true:
       align_rtn.aln_q_e = x
       align_rtn.aln_t_e = y
@@ -251,7 +269,11 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
         ck = k
         aln_path_idx = 0
         while cd >= 0 and aln_path_idx < q_len + t_len + 1:
-          let d_path_aux: ref d_path_data2 = get_dpath_idx(cd, ck, max_idx, d_path)
+          let d_path_aux: d_path_data2 = get_dpath_idx(cd, ck, max_idx, d_path)
+          echo "d_path_aux:",repr(d_path_aux)
+          echo "aln_path_idx:", aln_path_idx
+          echo "len:", len(aln_path)
+          echo "sub:", repr(aln_path[aln_path_idx])
           aln_path[aln_path_idx].x = d_path_aux.x2
           aln_path[aln_path_idx].y = d_path_aux.y2
           inc(aln_path_idx)

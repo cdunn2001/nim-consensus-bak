@@ -57,7 +57,7 @@ iterator get_seq_data(config: Config, min_n_read, min_len_aln: int): auto =
   #let min_idt = 0.70
   #let min_cov = 1
   #let max_n_read 20000
-  const max_len = 10000
+  const max_len = 100000
   var seed_len = 0
   var seed_id: string = ""
   var seqs: seq[string] = @[]
@@ -215,7 +215,9 @@ proc main(min_cov=6, min_cov_aln=10, max_cov_aln=0, min_len_aln=0, min_n_read=10
           n_core=24): int =
   log("main(n_core=", $n_core, ")")
   if n_core > 0:
-    threadpool.setMaxPoolSize(n_core) # This seems to take effect after some threads have finished. Not sure yet. ~cd
+    #threadpool.setMaxPoolSize(n_core)
+    #sync() # Let extra threads shutdown.
+    discard
   let config: Config = (
     min_cov: 1, # min_cov
     K: 8, # not cli
