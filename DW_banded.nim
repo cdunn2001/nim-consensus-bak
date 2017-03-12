@@ -67,7 +67,7 @@ common.usePtr[char]()
 
 # Was used by sort. Still used by bsearch.
 proc compare_d_path*(arg1, arg2: d_path_data2): int =
-  log("Comparing:", repr(arg1), " to ", repr(arg2))
+  #log("Comparing:", repr(arg1), " to ", repr(arg2))
   if arg1.d == arg2.d:
     if arg1.k == arg2.k:
       result = 0
@@ -75,7 +75,7 @@ proc compare_d_path*(arg1, arg2: d_path_data2): int =
       result = if arg1.k < arg2.k: -1 else: 1
   else:
     result = if arg1.d < arg2.d: -1 else: 1
-  log("result=", $result)
+  #log("result=", $result)
 
 proc d_path_data2sort*(data: pointer; max_idx: ByteAddress, size: ByteAddress) {.
     cdecl, importc: "d_path_data2sort", header: "data_sorter.h".}
@@ -83,7 +83,7 @@ proc d_path_data2sort*(data: pointer; max_idx: ByteAddress, size: ByteAddress) {
 proc d_path_sort*(path_base: var seq[d_path_data2], max_idx: int32) =
   if max_idx == 1:
     return
-  log("sort:", $len(path_base), " max_idx:", $max_idx)
+  #log("sort:", $len(path_base), " max_idx:", $max_idx)
   #path_base.sort(compare_d_path)
   d_path_data2sort(pointer(addr path_base[0]), ByteAddress(max_idx), ByteAddress(sizeof(d_path_data2)));
   #void d_path_sort( d_path_data2 * base, unsigned long max_idx)
@@ -271,10 +271,10 @@ proc align*(query_seq: ptr char; q_len: seq_coor_t; target_seq: ptr char;
         aln_path_idx = 0
         while cd >= 0 and aln_path_idx < q_len + t_len + 1:
           let d_path_aux: d_path_data2 = get_dpath_idx(cd, ck, max_idx, d_path)
-          echo "d_path_aux:",repr(d_path_aux)
-          echo "aln_path_idx:", aln_path_idx
-          echo "len:", len(aln_path)
-          echo "sub:", repr(aln_path[aln_path_idx])
+          #echo "d_path_aux:",repr(d_path_aux)
+          #echo "aln_path_idx:", aln_path_idx
+          #echo "len:", len(aln_path)
+          #echo "sub:", repr(aln_path[aln_path_idx])
           aln_path[aln_path_idx].x = d_path_aux.x2
           aln_path[aln_path_idx].y = d_path_aux.y2
           inc(aln_path_idx)

@@ -117,7 +117,7 @@ proc get_con(args: ConsensusArgs): ConsensusResult =
     let n_seq = len(seqs)
     if len(seqs) > config.max_n_read:
         seqs = get_longest_sorted_reads(seqs, config.max_n_read, config.max_cov_aln)
-    poo.poo()
+    #poo.poo()
     #log("About to generate_con ", $len(seqs), " ", $n_seq)
     #log("pseq:", $(cast[ByteAddress]((addr(seqs[0])))), " eg ", $len(seqs[0]))
     var cseqs: cStringArray

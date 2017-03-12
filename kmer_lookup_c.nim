@@ -242,7 +242,7 @@ proc find_kmer_pos_for_seq*(cseq: cstring; seq_len: seq_coor_t; K: cuint;
 
 proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
                          count_th: seq_coor_t): ref aln_range =
-  log("find_best_aln_range(", $bin_size, ", ", $count_th, ")")
+  #log("find_best_aln_range(", $bin_size, ", ", $count_th, ")")
   var i: seq_coor_t
   var j: seq_coor_t
   var
