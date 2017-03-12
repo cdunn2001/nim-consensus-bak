@@ -572,6 +572,7 @@ proc generate_consensus*(input_seq: cStringArray; n_seq: int; min_cov: int;
   #  inc(ii)
   newSeq(tags_list, seq_count)
   var lk_ptr = kmer_lookup_c.allocate_kmer_lookup(seq_coor_t(1 shl (K * 2)))
+  #log("len(lk_ptr):", $(1 shl (K * 2)), "==", $len(lk_ptr))
   sa_ptr = allocate_seq(len(input_seq[0]).seq_coor_t)
   sda_ptr = allocate_seq_addr(len(input_seq[0]).seq_coor_t)
   # TODO(CD): That was 0s for .c, but not 0s here. Where should we init?
@@ -586,6 +587,7 @@ proc generate_consensus*(input_seq: cStringArray; n_seq: int; min_cov: int;
     const
       INDEL_ALLOWENCE_0 = 6
     arange = find_best_aln_range(kmer_match_ptr, K.int * INDEL_ALLOWENCE_0, 5.seq_coor_t)
+    #log("ARANGE:", repr(arange))
     ## # narrow band to avoid aligning through big indels
     ## #printf("1:%ld %ld %ld %ld\n", arange_->s1, arange_->e1, arange_->s2, arange_->e2);
     ## #arange = find_best_aln_range2(kmer_match_ptr, K * INDEL_ALLOWENCE_0, 5.seq_coor_t);  // narrow band to avoid aligning through big indels

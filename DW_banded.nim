@@ -92,6 +92,7 @@ proc d_path_sort*(path_base: var seq[d_path_data2], max_idx: int32) =
 # Copied from Nim/lib/pure/algorithm.nim, and added cmp proc,
 # and max_idx.
 proc binarySearch*[T](a: openArray[T], length: int, key: T, cmp: proc (x, y: T): int {.closure.}): int =
+  #log("length:", $length, ", key:", $key)
   ## binary search for `key` in `a`. Returns -1 if not found.
   var b = length # must be <= len(a)
   result = 0

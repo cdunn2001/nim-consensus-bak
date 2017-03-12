@@ -237,10 +237,12 @@ proc find_kmer_pos_for_seq*(cseq: cstring; seq_len: seq_coor_t; K: cuint;
       result.target_pos.add(kmer_pos)
       inc(result.count, 1)
     inc(i, half_K.seq_coor_t)
+  #log("kmer_match:@", $kmer_pos, " ", $result.count, " ", $len(result.query_pos))
   #return result # implicit
 
 proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
                          count_th: seq_coor_t): ref aln_range =
+  log("find_best_aln_range(", $bin_size, ", ", $count_th, ")")
   var i: seq_coor_t
   var j: seq_coor_t
   var
@@ -284,7 +286,7 @@ proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
     if d > d_max:
       d_max = d
     inc(i)
-  ## #printf("%lu %ld %ld\n" , km_ptr->count, d_min, d_max);
+  #log("KMM:", $km_ptr.count, " ", $d_min, " ", $d_max, " ", $((d_max - d_min) div bin_size + 1))
   newSeq(d_count, ((d_max - d_min) div bin_size + 1))
   newSeq(q_coor, km_ptr.count)
   newSeq(t_coor, km_ptr.count)
@@ -305,7 +307,7 @@ proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
       max_k_mer_count = d_count[(d - d_min) div clong(bin_size)]
       max_k_mer_bin = (d - d_min) div clong(bin_size)
     inc(i)
-  ## #printf("k_mer: %lu %lu\n" , max_k_mer_count, max_k_mer_bin);
+  #log("k_mer:", $max_k_mer_count, " ", $max_k_mer_bin)
   if max_k_mer_bin != INT_MAX and max_k_mer_count > count_th:
     i = 0
     while i < km_ptr.count:
@@ -332,7 +334,7 @@ proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
     i = 1
     while i < j:
       inc(cur_score, 32 - (q_coor[i] - q_coor[i - 1]))
-      ## #printf("deltaD, %lu %ld\n", q_coor[i] - q_coor[i-1], cur_score);
+      #log("deltaD:", $(q_coor[i] - q_coor[i-1]), " ", $cur_score)
       if cur_score < 0:
         cur_score = 0
         cur_start = i
@@ -343,7 +345,7 @@ proc find_best_aln_range*(km_ptr: ref kmer_match; bin_size: int;
         arange.e2 = t_coor[i]
         max_score = cur_score
         arange.score = max_score
-        ## #printf("%lu %lu %lu %lu\n", arange.s1, arange.e1, arange.s2, arange.e2);
+        #log("Arange:", repr(arange))
       inc(i)
   else:
     arange.s1 = 0
